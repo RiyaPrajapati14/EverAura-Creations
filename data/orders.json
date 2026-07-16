@@ -1,0 +1,16 @@
+[
+  {
+    "order_id": "20260716140803",
+    "timestamp": "2026-07-16T08:38:03.002Z",
+    "customer_name": "hello",
+    "phone": "9638527410",
+    "email": null,
+    "product_required": "Wedding Welcome Board",
+    "event_date": "next week",
+    "customization_details": "as you wish",
+    "reference_image": null,
+    "source": "AI_CHATBOT",
+    "status": "Received",
+    "admin_notes": ""
+  }
+]

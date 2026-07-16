@@ -1,0 +1,15 @@
+[
+    {
+        "order_id": "20260716133114",
+        "timestamp": "2026-07-16T08:01:14.199Z",
+        "customer_name": "demo",
+        "phone": "9876543210",
+        "email": null,
+        "product_required": "Wedding Welcome Board",
+        "event_date": "next week",
+        "customization_details": "riya and prince",
+        "reference_image": null,
+        "source": "AI_CHATBOT",
+        "status": "Received"
+    }
+]
