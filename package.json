@@ -4,7 +4,7 @@
   "description": "EverAura Creations — Business Website (MERN Stack with Image Sliders)",
   "private": true,
   "scripts": {
-    "postinstall": "npm --prefix backend install --include=dev && npm --prefix frontend install --include=dev",
+    "postinstall": "npm --prefix backend install --include=dev && npm --prefix frontend install --include=dev && chmod -R +x frontend/node_modules/.bin backend/node_modules/.bin || true",
     "dev": "concurrently -n \"BACKEND,FRONTEND\" -c \"bgYellow.bold,bgCyan.bold\" \"npm run server\" \"npm run client\"",
     "server": "npm --prefix backend run dev",
     "client": "npm --prefix frontend run dev",

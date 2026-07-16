@@ -1,0 +1,35 @@
+[build]
+  base = "frontend"
+  command = "npm install && npm run build"
+  publish = "dist"
+
+# ══════════════════════════════════════════════════════════════════════════
+# NETLIFY EDGE PROXY RULES
+# Replace "https://everaura-backend.onrender.com" below with your live Render API URL!
+# This forwards API calls from Netlify to Render seamlessly with ZERO CORS errors
+# and ZERO changes needed in your React frontend code.
+# ══════════════════════════════════════════════════════════════════════════
+
+[[redirects]]
+  from = "/api/*"
+  to = "https://everaura-backend.onrender.com/api/:splat"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/submit-order"
+  to = "https://everaura-backend.onrender.com/submit-order"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/static/uploads/*"
+  to = "https://everaura-backend.onrender.com/static/uploads/:splat"
+  status = 200
+  force = true
+
+# Single Page Application (SPA) routing fallback (prevents 404 on page refresh)
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

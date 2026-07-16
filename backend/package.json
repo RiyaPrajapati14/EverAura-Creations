@@ -6,6 +6,7 @@
   "main": "server.js",
   "type": "commonjs",
   "scripts": {
+    "build": "echo 'No build required for pure Node.js Express backend API — Ready to start!'",
     "start": "node server.js",
     "dev": "nodemon server.js"
   },
