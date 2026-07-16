@@ -19,6 +19,7 @@ const renderMarkdown = (text) => {
     }
     if (match[0] === '\n') {
       parts.push(<br key={key++} />);
+
     } else if (match[1] !== undefined) {
       // **bold**
       parts.push(<strong key={key++} style={{ fontWeight: 700, color: 'inherit' }}>{match[1]}</strong>);
