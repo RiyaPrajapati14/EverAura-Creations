@@ -1,9 +1,12 @@
 const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '.env') });
 require('dotenv').config({ path: path.join(__dirname, '../.env') });
+const express = require('express');
+const cors = require('cors');
 
 const { connectDB, getIsMongoConnected } = require('./config/db');
 const orderRoutes = require('./routes/orderRoutes');
+
 
 const app = express();
 const PORT = process.env.PORT || 5000;
