@@ -138,10 +138,24 @@ const ChatbotWidget = () => {
       setState(data.nextState || 'INIT');
       if (data.sessionData) setSessionData(data.sessionData);
 
-      setMessages(prev => [
-        ...prev,
-        { sender: 'bot', text: data.reply, quickReplies: data.quickReplies || null }
-      ]);
+      // If backend sends a customerWaUrl (from Send Query flow), append a WhatsApp link message
+      if (data.customerWaUrl) {
+        setMessages(prev => [
+          ...prev,
+          { sender: 'bot', text: data.reply, quickReplies: data.quickReplies || null },
+          {
+            sender: 'bot',
+            text: `💬 **Tap below to message us on WhatsApp directly:**`,
+            quickReplies: null,
+            waButton: data.customerWaUrl
+          }
+        ]);
+      } else {
+        setMessages(prev => [
+          ...prev,
+          { sender: 'bot', text: data.reply, quickReplies: data.quickReplies || null }
+        ]);
+      }
     } catch {
       setMessages(prev => [
         ...prev,
@@ -155,6 +169,7 @@ const ChatbotWidget = () => {
       setIsLoading(false);
     }
   };
+
 
   const handleFileChange = (e) => {
     if (e.target.files?.[0]) {
@@ -392,8 +407,38 @@ const ChatbotWidget = () => {
                     {renderMarkdown(msg.text)}
                   </div>
 
+                  {/* WhatsApp Direct Button — shown for Send Query confirmation */}
+                  {msg.waButton && (
+                    <a
+                      href={msg.waButton}
+                      target="_blank"
+                      rel="noreferrer"
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        background: 'linear-gradient(135deg, #25d366, #128c7e)',
+                        color: '#fff',
+                        textDecoration: 'none',
+                        padding: '10px 18px',
+                        borderRadius: '22px',
+                        fontSize: '0.85rem',
+                        fontWeight: 700,
+                        boxShadow: '0 4px 14px rgba(37,211,102,0.35)',
+                        transition: 'transform 0.15s, box-shadow 0.15s',
+                        maxWidth: '83%'
+                      }}
+                      onMouseOver={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 6px 20px rgba(37,211,102,0.5)'; }}
+                      onMouseOut={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 4px 14px rgba(37,211,102,0.35)'; }}
+                    >
+                      <span style={{ fontSize: '1.1rem' }}>💬</span>
+                      Message on WhatsApp
+                    </a>
+                  )}
+
                   {/* Quick Reply Chips — only show on last bot message */}
                   {msg.quickReplies && idx === messages.length - 1 && (
+
                     <div style={{
                       display: 'flex',
                       flexWrap: 'wrap',

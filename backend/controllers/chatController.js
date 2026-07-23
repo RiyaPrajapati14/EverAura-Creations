@@ -77,15 +77,11 @@ const formatStatusTimeline = (status) => {
 };
 
 /* ══════════════════════════════════════════════════════════════════════════
-   GROQ AI INTEGRATION — LLaMA 3.3 70B Model
+   GROQ AI INTEGRATION — LLaMA 3.3 70B Model (with multi-turn history)
 ══════════════════════════════════════════════════════════════════════════ */
-const callGroqAI = async (userPrompt) => {
-  const apiKey = process.env.GROQ_API_KEY;
-  if (!apiKey) return null;
-
-  try {
-    const systemPrompt = `You are the friendly, expert 24/7 AI Assistant for "EverAura Creations", Nadiad's premier artisan craft & digital studio in Gujarat, India.
+const STUDIO_SYSTEM_PROMPT = `You are the friendly, expert 24/7 AI Assistant for "EverAura Creations", Nadiad's premier artisan craft & digital studio in Gujarat, India.
 Studio Profile & Info:
+- Owner: Riya Prajapati (Studio Head, Nadiad)
 - Specialty: Handmade Gifts, Resin Art (Keepsakes, Coasters, Trays), Wedding Welcome Boards, Calligraphy Frames, Ring Ceremony Platters, Digital Wedding Invitations, Pre-wedding Video Posters, Social Media Reels & Brand Logos.
 - Location: Nadiad, Gujarat.
 - Physical Delivery: Free doorstep delivery across Nadiad.
@@ -96,9 +92,16 @@ Studio Profile & Info:
 
 Instructions:
 1. Respond warmly and conversationally in the user's language (English, Phonetic Gujarati / Gujlish, or Hindi).
-2. Keep responses concise (2 to 4 sentences max) with nice formatting and emojis.
-3. Always invite the user to place an order or check prices if interested.`;
+2. Keep responses concise (2 to 5 sentences max) with nice formatting and emojis.
+3. Always invite the user to place an order or check prices if they seem interested.
+4. In discussion mode, remember the full conversation context and respond thoughtfully to follow-up questions.`;
 
+/* Basic single-turn Groq call (for INIT state fallback) */
+const callGroqAI = async (userPrompt) => {
+  const apiKey = process.env.GROQ_API_KEY;
+  if (!apiKey) return null;
+
+  try {
     const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -108,7 +111,7 @@ Instructions:
       body: JSON.stringify({
         model: 'llama-3.3-70b-versatile',
         messages: [
-          { role: 'system', content: systemPrompt },
+          { role: 'system', content: STUDIO_SYSTEM_PROMPT },
           { role: 'user', content: userPrompt }
         ],
         max_tokens: 300,
@@ -123,6 +126,43 @@ Instructions:
     }
   } catch (err) {
     console.error('Groq AI Call Error:', err.message);
+  }
+  return null;
+};
+
+/* Multi-turn Groq call (for DISCUSS state — passes full history for context) */
+const callGroqAIWithHistory = async (conversationHistory, newUserMessage) => {
+  const apiKey = process.env.GROQ_API_KEY;
+  if (!apiKey) return null;
+
+  try {
+    const messages = [
+      { role: 'system', content: STUDIO_SYSTEM_PROMPT },
+      ...(conversationHistory || []),
+      { role: 'user', content: newUserMessage }
+    ];
+
+    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model: 'llama-3.3-70b-versatile',
+        messages,
+        max_tokens: 500,
+        temperature: 0.75
+      })
+    });
+
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (data.choices && data.choices[0] && data.choices[0].message) {
+      return data.choices[0].message.content.trim();
+    }
+  } catch (err) {
+    console.error('Groq Multi-Turn AI Call Error:', err.message);
   }
   return null;
 };
@@ -178,7 +218,7 @@ exports.handleChatMessage = async (req, res) => {
       return res.json({
         nextState: 'INIT',
         reply: "🏠 **Main Menu**\n\nHow can I help you today?",
-        quickReplies: ['✨ Place an Order', '💬 Check Price', '📍 Delivery Info', '📦 Track Order', '🚫 Cancel Order'],
+        quickReplies: ['✨ Place an Order', '💬 Check Price', '📍 Delivery Info', '📦 Track Order', '🚫 Cancel Order', '🗣️ Discuss a Query'],
         sessionData: {}
       });
     }
@@ -384,6 +424,25 @@ exports.handleChatMessage = async (req, res) => {
         });
       }
 
+      // 🗣️ Discuss a Query — enter discussion mode
+      if (cleanMsg === '🗣️ Discuss a Query' || cleanMsg.toLowerCase() === 'discuss' || cleanMsg.toLowerCase() === 'query') {
+        return res.json({
+          nextState: 'DISCUSS',
+          reply: "🗣️ **Let's Discuss!**\n\nFeel free to ask me anything — about our services, customization ideas, design suggestions, pricing, or anything else on your mind.\n\nI'll answer all your questions and help you find the perfect solution! 😊",
+          quickReplies: ['📩 Send Query to Studio', '🏠 Main Menu'],
+          sessionData: { conversationHistory: [] }
+        });
+      }
+
+      // 📩 Send Query to Studio — enter query submission flow
+      if (cleanMsg === '📩 Send Query to Studio') {
+        return res.json({
+          nextState: 'SEND_QUERY_INPUT',
+          reply: "📩 **Send a Query to Our Studio**\n\nPlease type out your query or question below. We will personally review it and reply on WhatsApp as soon as possible! 📱",
+          quickReplies: ['🏠 Main Menu']
+        });
+      }
+
       // Gujlish / Custom Rule Intent Matcher
       const regionalIntent = detectRegionalIntent(cleanMsg);
       if (regionalIntent) {
@@ -400,7 +459,7 @@ exports.handleChatMessage = async (req, res) => {
         return res.json({
           nextState: 'INIT',
           reply: aiReply,
-          quickReplies: ['✨ Place an Order', '💬 Check Price', '📍 Delivery Info', '📦 Track Order']
+          quickReplies: ['✨ Place an Order', '💬 Check Price', '📍 Delivery Info', '📦 Track Order', '🗣️ Discuss a Query']
         });
       }
 
@@ -408,7 +467,101 @@ exports.handleChatMessage = async (req, res) => {
       return res.json({
         nextState: 'INIT',
         reply: "Namaste! 🪧 I am your EverAura Creations AI Assistant for **Nadiad**.\n\nAsk me anything in English or Gujlish, or pick an option:",
-        quickReplies: ['✨ Place an Order', '💬 Check Price', '📍 Delivery Info', '📦 Track Order', '🚫 Cancel Order']
+        quickReplies: ['✨ Place an Order', '💬 Check Price', '📍 Delivery Info', '📦 Track Order', '🚫 Cancel Order', '🗣️ Discuss a Query']
+      });
+    }
+
+    /* ══════════════════════════════════════════════════════════════════════════
+       DISCUSS STATE — Multi-turn AI conversation with full history context
+    ══════════════════════════════════════════════════════════════════════════ */
+    if (state === 'DISCUSS') {
+
+      // Exit discussion to send a query
+      if (cleanMsg === '📩 Send Query to Studio') {
+        return res.json({
+          nextState: 'SEND_QUERY_INPUT',
+          reply: "📩 **Send a Query to Our Studio**\n\nType your query below and we'll personally respond via WhatsApp! 📱",
+          quickReplies: ['🏠 Main Menu'],
+          sessionData: { ...(sessionData || {}) }
+        });
+      }
+
+      // Build conversation history from sessionData
+      const history = Array.isArray(sessionData.conversationHistory) ? sessionData.conversationHistory : [];
+
+      // Get multi-turn Groq AI reply with full conversation context
+      const discussReply = await callGroqAIWithHistory(history, cleanMsg);
+
+      // Append this exchange to conversation history (keep last 10 turns for token efficiency)
+      const updatedHistory = [
+        ...history,
+        { role: 'user', content: cleanMsg },
+        { role: 'assistant', content: discussReply || 'Let me check and get back to you on that! 😊' }
+      ].slice(-20); // keep last 10 exchanges (20 messages)
+
+      if (discussReply) {
+        return res.json({
+          nextState: 'DISCUSS',
+          reply: discussReply,
+          quickReplies: ['📩 Send Query to Studio', '✨ Place an Order', '🏠 Main Menu'],
+          sessionData: { ...sessionData, conversationHistory: updatedHistory }
+        });
+      }
+
+      // Fallback if Groq is unavailable in discuss mode
+      return res.json({
+        nextState: 'DISCUSS',
+        reply: "Great question! 😊 I want to make sure I give you the best answer. You can also **📩 Send this Query to our Studio** and Riya will personally reply on WhatsApp!",
+        quickReplies: ['📩 Send Query to Studio', '✨ Place an Order', '🏠 Main Menu'],
+        sessionData: { ...sessionData, conversationHistory: updatedHistory }
+      });
+    }
+
+    /* ══════════════════════════════════════════════════════════════════════════
+       SEND QUERY TO STUDIO — Collect query text → phone → forward to owner
+    ══════════════════════════════════════════════════════════════════════════ */
+    if (state === 'SEND_QUERY_INPUT') {
+      // Store the query message, ask for phone
+      return res.json({
+        nextState: 'SEND_QUERY_PHONE',
+        reply: `📝 Got it! I've noted your query:\n\n*"${cleanMsg}"*\n\nNow please share your **10-digit WhatsApp Number** so our studio can reply to you directly! 📱`,
+        quickReplies: ['🏠 Main Menu'],
+        sessionData: { ...sessionData, customer_query: cleanMsg }
+      });
+    }
+
+    if (state === 'SEND_QUERY_PHONE') {
+      const cleanPhone = cleanMsg.replace(/[^0-9]/g, '');
+      if (!/^[6-9]\d{9}$/.test(cleanPhone)) {
+        return res.json({
+          nextState: 'SEND_QUERY_PHONE',
+          reply: "⚠️ Please enter a valid **10-digit Indian mobile number** (e.g. `9876543210`):",
+          quickReplies: ['🏠 Main Menu'],
+          sessionData
+        });
+      }
+
+      const queryText = sessionData.customer_query || 'Query from chatbot user';
+
+      // Build WhatsApp URL for studio owner to receive the query
+      const studioPhone = '919000000000'; // replace with actual studio WhatsApp number
+      const waMessage = encodeURIComponent(
+        `📩 New Customer Query via EverAura Chatbot\n\n📱 Customer WhatsApp: +91${cleanPhone}\n\n💬 Query:\n"${queryText}"\n\nPlease reply to them on WhatsApp as soon as possible! 🙏`
+      );
+      const waUrl = `https://wa.me/${studioPhone}?text=${waMessage}`;
+
+      // Also build a WhatsApp URL for the customer to follow-up
+      const customerWaMessage = encodeURIComponent(
+        `Hello EverAura Creations! 🌸\n\nI have a query I'd like to discuss:\n"${queryText}"\n\nCould you please help me? Thank you!`
+      );
+      const customerWaUrl = `https://wa.me/${studioPhone}?text=${customerWaMessage}`;
+
+      return res.json({
+        nextState: 'INIT',
+        reply: `✅ **Query Submitted!**\n\n📱 Thank you! Our studio team will contact you on **+91 ${cleanPhone}** via WhatsApp very soon!\n\n💬 You can also reach us directly:`,
+        quickReplies: ['✨ Place an Order', '🗣️ Discuss a Query', '🏠 Main Menu'],
+        sessionData: {},
+        customerWaUrl
       });
     }
 
@@ -549,7 +702,7 @@ exports.handleChatMessage = async (req, res) => {
     return res.json({
       nextState: 'INIT',
       reply: "I'm here to help! What would you like to do?",
-      quickReplies: ['✨ Place an Order', '💬 Check Price', '📍 Delivery Info', '📦 Track Order', '🏠 Main Menu']
+      quickReplies: ['✨ Place an Order', '💬 Check Price', '📍 Delivery Info', '📦 Track Order', '🗣️ Discuss a Query', '🏠 Main Menu']
     });
 
   } catch (error) {
