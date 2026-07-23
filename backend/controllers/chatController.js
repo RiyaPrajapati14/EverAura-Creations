@@ -544,7 +544,7 @@ exports.handleChatMessage = async (req, res) => {
       const queryText = sessionData.customer_query || 'Query from chatbot user';
 
       // Build WhatsApp URL for studio owner to receive the query
-      const studioPhone = '919000000000'; // replace with actual studio WhatsApp number
+      const studioPhone = '918780705662'; // replace with actual studio WhatsApp number
       const waMessage = encodeURIComponent(
         `📩 New Customer Query via EverAura Chatbot\n\n📱 Customer WhatsApp: +91${cleanPhone}\n\n💬 Query:\n"${queryText}"\n\nPlease reply to them on WhatsApp as soon as possible! 🙏`
       );
