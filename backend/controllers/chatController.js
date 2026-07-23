@@ -3,6 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const { saveOrderRecord, readOrdersFromFile, getIsMongoConnected } = require('../config/db');
 const { sendStudioAlert } = require('../utils/notifyStudio');
+const queryCtrl = require('./queryController');
 
 /* ══════════════════════════════════════════════════════════════════════════
    PRICE CATALOG — EverAura Creations, Nadiad
@@ -218,7 +219,7 @@ exports.handleChatMessage = async (req, res) => {
       return res.json({
         nextState: 'INIT',
         reply: "🏠 **Main Menu**\n\nHow can I help you today?",
-        quickReplies: ['✨ Place an Order', '💬 Check Price', '📍 Delivery Info', '📦 Track Order', '🚫 Cancel Order', '🗣️ Discuss a Query'],
+        quickReplies: ['✨ Place an Order', '💬 Check Price', '📍 Delivery Info', '📦 Track Order', '🚫 Cancel Order', '🗣️ Discuss a Query', '📬 Check My Replies'],
         sessionData: {}
       });
     }
@@ -511,22 +512,40 @@ exports.handleChatMessage = async (req, res) => {
       // Fallback if Groq is unavailable in discuss mode
       return res.json({
         nextState: 'DISCUSS',
-        reply: "Great question! 😊 I want to make sure I give you the best answer. You can also **📩 Send this Query to our Studio** and Riya will personally reply on WhatsApp!",
+        reply: "Great question! 😊 I want to make sure I give you the best answer. You can also **📩 Send this Query to our Studio** and Riya from EverAura will personally reply in this chat!",
         quickReplies: ['📩 Send Query to Studio', '✨ Place an Order', '🏠 Main Menu'],
         sessionData: { ...sessionData, conversationHistory: updatedHistory }
       });
     }
 
     /* ══════════════════════════════════════════════════════════════════════════
-       SEND QUERY TO STUDIO — Collect query text → phone → forward to owner
+       SEND QUERY TO STUDIO — Collect query text → name → phone → save to DB
     ══════════════════════════════════════════════════════════════════════════ */
     if (state === 'SEND_QUERY_INPUT') {
-      // Store the query message, ask for phone
+      // Step 1: Store the query message, ask for customer name next
       return res.json({
-        nextState: 'SEND_QUERY_PHONE',
-        reply: `📝 Got it! I've noted your query:\n\n*"${cleanMsg}"*\n\nNow please share your **10-digit WhatsApp Number** so our studio can reply to you directly! 📱`,
+        nextState: 'SEND_QUERY_NAME',
+        reply: `📝 Got it! I've noted your query:\n\n> *"${cleanMsg}"*\n\nWhat is your **full name**? 😊`,
         quickReplies: ['🏠 Main Menu'],
         sessionData: { ...sessionData, customer_query: cleanMsg }
+      });
+    }
+
+    if (state === 'SEND_QUERY_NAME') {
+      if (!cleanMsg || cleanMsg.length < 2) {
+        return res.json({
+          nextState: 'SEND_QUERY_NAME',
+          reply: "⚠️ Please enter your **full name** so our studio knows who you are:",
+          quickReplies: ['🏠 Main Menu'],
+          sessionData
+        });
+      }
+      // Step 2: Store name, ask for phone
+      return res.json({
+        nextState: 'SEND_QUERY_PHONE',
+        reply: `Nice to meet you, **${cleanMsg}**! 😊\n\nPlease share your **10-digit mobile number** so we can notify you when our studio replies:`,
+        quickReplies: ['🏠 Main Menu'],
+        sessionData: { ...sessionData, query_customer_name: cleanMsg }
       });
     }
 
@@ -541,27 +560,111 @@ exports.handleChatMessage = async (req, res) => {
         });
       }
 
-      const queryText = sessionData.customer_query || 'Query from chatbot user';
+      const queryText        = sessionData.customer_query    || 'Query from chatbot user';
+      const queryCustomerName = sessionData.query_customer_name || 'Customer';
 
-      // Build WhatsApp URL for studio owner to receive the query
-      const studioPhone = '918780705662'; // replace with actual studio WhatsApp number
-      const waMessage = encodeURIComponent(
-        `📩 New Customer Query via EverAura Chatbot\n\n📱 Customer WhatsApp: +91${cleanPhone}\n\n💬 Query:\n"${queryText}"\n\nPlease reply to them on WhatsApp as soon as possible! 🙏`
-      );
-      const waUrl = `https://wa.me/${studioPhone}?text=${waMessage}`;
+      // Save query to database (mock Express req/res objects)
+      let queryId = null;
+      try {
+        await new Promise((resolve, reject) => {
+          const fakeReq = { body: { customerName: queryCustomerName, phone: cleanPhone, queryText } };
+          const fakeRes = {
+            status: () => fakeRes,
+            json: (data) => {
+              if (data.queryId) queryId = data.queryId;
+              resolve();
+            }
+          };
+          queryCtrl.submitQuery(fakeReq, fakeRes).catch(reject);
+        });
+      } catch (err) {
+        console.error('Failed to save query from chatbot:', err.message);
+      }
 
-      // Also build a WhatsApp URL for the customer to follow-up
-      const customerWaMessage = encodeURIComponent(
-        `Hello EverAura Creations! 🌸\n\nI have a query I'd like to discuss:\n"${queryText}"\n\nCould you please help me? Thank you!`
-      );
-      const customerWaUrl = `https://wa.me/${studioPhone}?text=${customerWaMessage}`;
+      const idNote = queryId
+        ? `\n\n🔖 **Your Query ID:** \`${queryId}\`\n_Save this to check admin replies anytime!_`
+        : '';
 
       return res.json({
         nextState: 'INIT',
-        reply: `✅ **Query Submitted!**\n\n📱 Thank you! Our studio team will contact you on **+91 ${cleanPhone}** via WhatsApp very soon!\n\n💬 You can also reach us directly:`,
-        quickReplies: ['✨ Place an Order', '🗣️ Discuss a Query', '🏠 Main Menu'],
-        sessionData: {},
-        customerWaUrl
+        reply: `✅ **Query Submitted!**\n\nThank you, **${queryCustomerName}**! 🙏 Our studio team has received your query and will personally reply.${idNote}\n\nWant to check if there's a reply? Click **📬 Check My Replies** and enter your mobile number!`,
+        quickReplies: ['📬 Check My Replies', '✨ Place an Order', '🏠 Main Menu'],
+        sessionData: {}
+      });
+    }
+
+    /* ══════════════════════════════════════════════════════════════════════════
+       CHECK MY REPLIES — Fetch admin replies from DB by phone number
+    ══════════════════════════════════════════════════════════════════════════ */
+    if (state === 'INIT' && (cleanMsg === '📬 Check My Replies' || cleanMsg.toLowerCase() === 'check replies' || cleanMsg.toLowerCase() === 'check my replies')) {
+      return res.json({
+        nextState: 'CHECK_REPLIES_PHONE',
+        reply: "📬 **Check Studio Replies**\n\nPlease enter your **10-digit mobile number** that you used when submitting your query:",
+        quickReplies: ['🏠 Main Menu']
+      });
+    }
+
+    if (state === 'CHECK_REPLIES_PHONE') {
+      const cleanPhone = cleanMsg.replace(/[^0-9]/g, '');
+      if (!/^[6-9]\d{9}$/.test(cleanPhone)) {
+        return res.json({
+          nextState: 'CHECK_REPLIES_PHONE',
+          reply: "⚠️ Please enter a valid **10-digit number** (e.g. `9876543210`):",
+          quickReplies: ['🏠 Main Menu']
+        });
+      }
+
+      // Fetch queries for this phone number
+      let queries = [];
+      try {
+        await new Promise((resolve) => {
+          const fakeReq = { params: { phone: cleanPhone } };
+          const fakeRes = {
+            status: () => fakeRes,
+            json: (data) => { queries = Array.isArray(data) ? data : []; resolve(); }
+          };
+          queryCtrl.checkRepliesForPhone(fakeReq, fakeRes);
+        });
+      } catch (err) {
+        console.error('checkRepliesForPhone error:', err.message);
+      }
+
+      if (queries.length === 0) {
+        return res.json({
+          nextState: 'INIT',
+          reply: `🔍 No queries found for **+91 ${cleanPhone}**.\n\nHave you submitted a query before? If not, try **🗣️ Discuss a Query** first!`,
+          quickReplies: ['🗣️ Discuss a Query', '✨ Place an Order', '🏠 Main Menu']
+        });
+      }
+
+      const repliedQueries = queries.filter(q => q.adminReplies && q.adminReplies.length > 0);
+      const pendingQueries = queries.filter(q => !q.adminReplies || q.adminReplies.length === 0);
+
+      let replyMsg = `📬 **Studio Replies for +91 ${cleanPhone}**\n\n`;
+
+      if (repliedQueries.length > 0) {
+        replyMsg += `✅ **${repliedQueries.length} Repl${repliedQueries.length > 1 ? 'ies' : 'y'} Received!**\n\n`;
+        repliedQueries.slice(0, 3).forEach((q, i) => {
+          replyMsg += `**Query ${i + 1}:** “${q.queryText.slice(0, 80)}${q.queryText.length > 80 ? '…' : ''}”\n`;
+          q.adminReplies.forEach((r, ri) => {
+            replyMsg += `💬 **Studio Reply ${ri + 1}:** ${r.text}\n`;
+          });
+          replyMsg += `\n`;
+        });
+      }
+
+      if (pendingQueries.length > 0) {
+        replyMsg += `⏳ **${pendingQueries.length} Quer${pendingQueries.length > 1 ? 'ies' : 'y'} Pending Reply**\n`;
+        pendingQueries.slice(0, 2).forEach((q) => {
+          replyMsg += `\u2022 “${q.queryText.slice(0, 60)}${q.queryText.length > 60 ? '…' : ''}”\n`;
+        });
+        replyMsg += `\n_Our studio team will reply soon! 🙏_`;
+      }
+
+      return res.json({
+        nextState: 'INIT',
+        reply: replyMsg,
+        quickReplies: ['🗣️ Discuss a Query', '✨ Place an Order', '🏠 Main Menu']
       });
     }
 

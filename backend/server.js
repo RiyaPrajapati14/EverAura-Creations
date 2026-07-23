@@ -25,7 +25,8 @@ app.use('/static/images', express.static(path.join(__dirname, '../static/images'
 
 // API & Order Submission Routes
 app.use('/api', orderRoutes);
-app.use('/api/chat', require('./routes/chatRoutes'));
+app.use('/api/chat',    require('./routes/chatRoutes'));
+app.use('/api/queries', require('./routes/queryRoutes'));
 app.use('/', orderRoutes); // Mounts /submit-order directly at root exactly like Flask
 
 // Health Check Endpoint (Skill Enhancement)

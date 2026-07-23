@@ -301,6 +301,14 @@ const StudioAdmin = ({ isOpen, onClose }) => {
   const [noteInputs, setNoteInputs] = useState({});
   const pinRef = useRef(null);
 
+  /* ── Query-related state ── */
+  const [queries, setQueries] = useState([]);
+  const [queriesLoading, setQueriesLoading] = useState(false);
+  const [unreadQueryCount, setUnreadQueryCount] = useState(0);
+  const [expandedQuery, setExpandedQuery] = useState(null);
+  const [replyInputs, setReplyInputs] = useState({});       // { [queryId]: 'reply text' }
+  const [sendingReply, setSendingReply] = useState({});     // { [queryId]: true/false }
+
   const showToast = useCallback((msg, type = 'success') => {
     setToast({ msg, type });
     setTimeout(() => setToast(null), 3500);
@@ -321,9 +329,43 @@ const StudioAdmin = ({ isOpen, onClose }) => {
     }
   }, [showToast]);
 
+  /* ── Fetch all queries ── */
+  const fetchQueries = useCallback(async () => {
+    setQueriesLoading(true);
+    try {
+      const res = await fetch('/api/queries');
+      const data = await res.json();
+      if (Array.isArray(data)) setQueries(data);
+    } catch {
+      showToast('Failed to load queries.', 'error');
+    } finally {
+      setQueriesLoading(false);
+    }
+  }, [showToast]);
+
+  /* ── Fetch unread count for badge ── */
+  const fetchUnreadCount = useCallback(async () => {
+    try {
+      const res = await fetch('/api/queries/unread-count');
+      const data = await res.json();
+      if (typeof data.count === 'number') setUnreadQueryCount(data.count);
+    } catch { /* silent */ }
+  }, []);
+
   useEffect(() => {
-    if (isAuthenticated && isOpen) fetchOrders();
-  }, [isAuthenticated, isOpen, fetchOrders]);
+    if (isAuthenticated && isOpen) {
+      fetchOrders();
+      fetchQueries();
+      fetchUnreadCount();
+    }
+  }, [isAuthenticated, isOpen, fetchOrders, fetchQueries, fetchUnreadCount]);
+
+  /* ── Poll unread query count every 30 seconds ── */
+  useEffect(() => {
+    if (!isAuthenticated || !isOpen) return;
+    const interval = setInterval(fetchUnreadCount, 30000);
+    return () => clearInterval(interval);
+  }, [isAuthenticated, isOpen, fetchUnreadCount]);
 
   // Keyboard Escape closes the panel
   useEffect(() => {
@@ -420,6 +462,41 @@ const StudioAdmin = ({ isOpen, onClose }) => {
       }
     } catch {
       showToast('Failed to save note.', 'error');
+    }
+  };
+
+  /* ── Mark query as read ── */
+  const markQueryRead = async (queryId) => {
+    try {
+      await fetch(`/api/queries/${queryId}/read`, { method: 'PATCH' });
+      setQueries(prev => prev.map(q => q.queryId === queryId ? { ...q, isReadByAdmin: true } : q));
+      setUnreadQueryCount(prev => Math.max(0, prev - 1));
+    } catch { /* silent */ }
+  };
+
+  /* ── Send admin reply to query ── */
+  const sendQueryReply = async (queryId) => {
+    const text = (replyInputs[queryId] || '').trim();
+    if (!text) return showToast('Please type a reply first.', 'error');
+    setSendingReply(prev => ({ ...prev, [queryId]: true }));
+    try {
+      const res = await fetch(`/api/queries/${queryId}/reply`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setQueries(prev => prev.map(q => q.queryId === queryId ? data.query : q));
+        setReplyInputs(prev => ({ ...prev, [queryId]: '' }));
+        showToast('📨 Reply sent to customer!');
+      } else {
+        showToast(data.error || 'Failed to send reply.', 'error');
+      }
+    } catch {
+      showToast('Network error sending reply.', 'error');
+    } finally {
+      setSendingReply(prev => ({ ...prev, [queryId]: false }));
     }
   };
 
@@ -591,11 +668,27 @@ const StudioAdmin = ({ isOpen, onClose }) => {
                 <div style={{ display: 'flex', borderBottom: '2px solid rgba(184,115,74,0.15)', padding: '0 24px', background: '#fff', flexShrink: 0 }}>
                   {[
                     { key: 'orders',    label: `📦 Orders (${orders.length})` },
+                    { key: 'queries',   label: `📬 Queries`, badge: unreadQueryCount },
                     { key: 'analytics', label: '📊 Analytics' },
                     { key: 'prices',    label: '💰 Price Reference' },
                   ].map(tab => (
-                    <button key={tab.key} className={`admin-tab ${activeTab === tab.key ? 'active' : ''}`} onClick={() => setActiveTab(tab.key)}>
+                    <button
+                      key={tab.key}
+                      className={`admin-tab ${activeTab === tab.key ? 'active' : ''}`}
+                      onClick={() => { setActiveTab(tab.key); if (tab.key === 'queries') fetchQueries(); }}
+                      style={{ position: 'relative' }}
+                    >
                       {tab.label}
+                      {tab.badge > 0 && (
+                        <span style={{
+                          position: 'absolute', top: '6px', right: '2px',
+                          background: '#dc2626', color: '#fff',
+                          borderRadius: '50%', width: '18px', height: '18px',
+                          fontSize: '0.65rem', fontWeight: 800,
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          animation: 'urgentPulse 1.5s ease-in-out infinite'
+                        }}>{tab.badge > 9 ? '9+' : tab.badge}</span>
+                      )}
                     </button>
                   ))}
                   <div style={{ marginLeft: 'auto', display: 'flex', gap: '6px', alignItems: 'center', padding: '6px 0' }}>
@@ -758,8 +851,157 @@ const StudioAdmin = ({ isOpen, onClose }) => {
                     </div>
                   )}
 
+                  {/* ═══ QUERIES TAB ═══ */}
+                  {activeTab === 'queries' && (
+                    <div>
+                      {/* Header bar */}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px' }}>
+                        <div>
+                          <h3 style={{ margin: 0, color: '#3d2b1a', fontSize: '1.05rem', fontWeight: 800 }}>
+                            📬 Customer Queries
+                          </h3>
+                          <p style={{ margin: '2px 0 0', fontSize: '0.78rem', color: '#9e7a5f' }}>
+                            {queries.length} total · {unreadQueryCount} unread · Customers are notified via chatbot
+                          </p>
+                        </div>
+                        <button
+                          onClick={fetchQueries}
+                          disabled={queriesLoading}
+                          style={{ ...S.btn('#fdf3eb', '#b8734a', '1px solid rgba(184,115,74,0.3)'), fontSize: '0.8rem', padding: '6px 14px', borderRadius: '8px' }}
+                        >
+                          {queriesLoading ? '🔄 Loading...' : '🔄 Refresh'}
+                        </button>
+                      </div>
+
+                      {queriesLoading && queries.length === 0 ? (
+                        <div style={{ textAlign: 'center', padding: '60px 20px', color: '#9e7a5f' }}>Loading queries...</div>
+                      ) : queries.length === 0 ? (
+                        <div style={{ textAlign: 'center', padding: '60px 20px', background: '#fdf8f2', borderRadius: '16px' }}>
+                          <div style={{ fontSize: '2.5rem', marginBottom: '12px' }}>📭</div>
+                          <h4 style={{ color: '#3d2b1a', margin: '0 0 8px' }}>No queries yet</h4>
+                          <p style={{ color: '#9e7a5f', fontSize: '0.88rem' }}>
+                            Customer queries submitted via the AI Chatbot will appear here.
+                          </p>
+                        </div>
+                      ) : (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                          {queries.map(q => {
+                            const isExpanded = expandedQuery === q.queryId;
+                            const hasReplies = q.adminReplies && q.adminReplies.length > 0;
+                            const statusColors = {
+                              open:    { bg: '#eff6ff', color: '#2563eb', border: '#bfdbfe', emoji: '🟡' },
+                              replied: { bg: '#f0fdf4', color: '#16a34a', border: '#bbf7d0', emoji: '✅' },
+                              closed:  { bg: '#f5f3ff', color: '#7c3aed', border: '#ddd6fe', emoji: '🔒' },
+                            };
+                            const sc = statusColors[q.status] || statusColors.open;
+                            return (
+                              <div
+                                key={q.queryId}
+                                style={{
+                                  background: q.isReadByAdmin ? '#fffcf9' : '#fff5f5',
+                                  border: `1px solid ${q.isReadByAdmin ? 'rgba(184,115,74,0.2)' : '#fca5a5'}`,
+                                  borderRadius: '16px',
+                                  overflow: 'hidden',
+                                  transition: 'box-shadow 0.2s'
+                                }}
+                              >
+                                {/* Query Card Header */}
+                                <div
+                                  onClick={() => {
+                                    setExpandedQuery(isExpanded ? null : q.queryId);
+                                    if (!q.isReadByAdmin) markQueryRead(q.queryId);
+                                  }}
+                                  style={{ padding: '14px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', gap: '10px', flexWrap: 'wrap', borderBottom: isExpanded ? '1px solid rgba(184,115,74,0.12)' : 'none' }}
+                                >
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', flex: 1 }}>
+                                    {!q.isReadByAdmin && (
+                                      <span style={{ background: '#dc2626', color: '#fff', borderRadius: '6px', padding: '2px 7px', fontSize: '0.68rem', fontWeight: 800 }}>NEW</span>
+                                    )}
+                                    <span style={{ fontWeight: 700, color: '#3d2b1a', fontSize: '0.88rem' }}>{q.customerName}</span>
+                                    <span style={{ color: '#9e7a5f', fontSize: '0.8rem' }}>+91 {q.phone}</span>
+                                    <span style={{ color: '#b8734a', fontSize: '0.78rem', fontFamily: 'monospace' }}>{q.queryId}</span>
+                                    <span style={{ color: '#9e7a5f', fontSize: '0.75rem' }}>
+                                      {q.createdAt ? new Date(q.createdAt).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : ''}
+                                    </span>
+                                  </div>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <span style={{ background: sc.bg, color: sc.color, border: `1px solid ${sc.border}`, padding: '3px 9px', borderRadius: '20px', fontSize: '0.73rem', fontWeight: 700 }}>
+                                      {sc.emoji} {q.status}
+                                    </span>
+                                    <span style={{ color: '#9e7a5f', fontSize: '0.85rem' }}>{isExpanded ? '▲' : '▼'}</span>
+                                  </div>
+                                </div>
+
+                                {/* Query Card Expanded Body */}
+                                {isExpanded && (
+                                  <div style={{ padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+
+                                    {/* Query text */}
+                                    <div style={{ background: '#fdf8f2', padding: '14px', borderRadius: '12px', borderLeft: '4px solid #b8734a' }}>
+                                      <span style={{ ...S.label, marginBottom: '6px' }}>💬 Customer Query</span>
+                                      <p style={{ margin: 0, color: '#3d2b1a', lineHeight: 1.6, fontSize: '0.9rem' }}>{q.queryText}</p>
+                                    </div>
+
+                                    {/* Previous admin replies */}
+                                    {hasReplies && (
+                                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                        <span style={S.label}>📨 Studio Replies ({q.adminReplies.length})</span>
+                                        {q.adminReplies.map((r, ri) => (
+                                          <div key={ri} style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '10px', padding: '10px 14px' }}>
+                                            <div style={{ fontSize: '0.78rem', color: '#16a34a', fontWeight: 700, marginBottom: '4px' }}>
+                                              Reply #{ri + 1} · {new Date(r.repliedAt).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                                            </div>
+                                            <p style={{ margin: 0, color: '#166534', fontSize: '0.88rem', lineHeight: 1.5 }}>{r.text}</p>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    )}
+
+                                    {/* Reply composer */}
+                                    <div style={{ background: '#f8f4ff', border: '1px solid #e9d5ff', borderRadius: '12px', padding: '14px' }}>
+                                      <span style={{ ...S.label, color: '#7c3aed', marginBottom: '8px' }}>✏️ Send a Reply to Customer</span>
+                                      <p style={{ margin: '0 0 8px', fontSize: '0.76rem', color: '#9e7a5f' }}>
+                                        The customer will see your reply when they tap <strong>📬 Check My Replies</strong> in the chatbot.
+                                      </p>
+                                      <textarea
+                                        className="admin-input"
+                                        rows={3}
+                                        placeholder="Type your reply here..."
+                                        value={replyInputs[q.queryId] || ''}
+                                        onChange={e => setReplyInputs(prev => ({ ...prev, [q.queryId]: e.target.value }))}
+                                        style={{ width: '100%', resize: 'vertical', marginBottom: '10px', boxSizing: 'border-box' }}
+                                      />
+                                      <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                                        {!q.isReadByAdmin && (
+                                          <button
+                                            onClick={() => markQueryRead(q.queryId)}
+                                            style={{ ...S.btn('#fdf8f2', '#9e7a5f', '1px solid rgba(184,115,74,0.3)'), fontSize: '0.8rem', padding: '7px 14px', borderRadius: '8px' }}
+                                          >
+                                            ✓ Mark as Read
+                                          </button>
+                                        )}
+                                        <button
+                                          onClick={() => sendQueryReply(q.queryId)}
+                                          disabled={sendingReply[q.queryId]}
+                                          style={{ ...S.btn('linear-gradient(135deg,#7c3aed,#a855f7)', '#fff'), fontSize: '0.85rem', padding: '8px 20px', borderRadius: '10px', boxShadow: '0 4px 12px rgba(124,58,237,0.3)', opacity: sendingReply[q.queryId] ? 0.6 : 1 }}
+                                        >
+                                          {sendingReply[q.queryId] ? 'Sending...' : '📨 Send Reply'}
+                                        </button>
+                                      </div>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   {/* ═══ ANALYTICS TAB ═══ */}
                   {activeTab === 'analytics' && (
+
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                       <StatsBar orders={orders} />
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
