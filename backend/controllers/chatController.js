@@ -77,6 +77,57 @@ const formatStatusTimeline = (status) => {
 };
 
 /* ══════════════════════════════════════════════════════════════════════════
+   GROQ AI INTEGRATION — LLaMA 3.3 70B Model
+══════════════════════════════════════════════════════════════════════════ */
+const callGroqAI = async (userPrompt) => {
+  const apiKey = process.env.GROQ_API_KEY;
+  if (!apiKey) return null;
+
+  try {
+    const systemPrompt = `You are the friendly, expert 24/7 AI Assistant for "EverAura Creations", Nadiad's premier artisan craft & digital studio in Gujarat, India.
+Studio Profile & Info:
+- Specialty: Handmade Gifts, Resin Art (Keepsakes, Coasters, Trays), Wedding Welcome Boards, Calligraphy Frames, Ring Ceremony Platters, Digital Wedding Invitations, Pre-wedding Video Posters, Social Media Reels & Brand Logos.
+- Location: Nadiad, Gujarat.
+- Physical Delivery: Free doorstep delivery across Nadiad.
+- Digital Delivery: Worldwide instant delivery via high-res WhatsApp / Google Drive link.
+- Handmade Turnaround: 4 to 7 days.
+- Digital Turnaround: 24 to 48 hours.
+- Key Price Highlights: Welcome Boards (₹800-2800), Ring Platters (₹1200-2400), Resin Keepsakes (₹600-1400), Digital Invites (₹400-900), Video Posters (₹300-700).
+
+Instructions:
+1. Respond warmly and conversationally in the user's language (English, Phonetic Gujarati / Gujlish, or Hindi).
+2. Keep responses concise (2 to 4 sentences max) with nice formatting and emojis.
+3. Always invite the user to place an order or check prices if interested.`;
+
+    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model: 'llama-3.3-70b-versatile',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt }
+        ],
+        max_tokens: 300,
+        temperature: 0.7
+      })
+    });
+
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (data.choices && data.choices[0] && data.choices[0].message) {
+      return data.choices[0].message.content.trim();
+    }
+  } catch (err) {
+    console.error('Groq AI Call Error:', err.message);
+  }
+  return null;
+};
+
+/* ══════════════════════════════════════════════════════════════════════════
    Regional / Gujlish NLP Helper
 ══════════════════════════════════════════════════════════════════════════ */
 const detectRegionalIntent = (text) => {
@@ -110,6 +161,7 @@ const detectRegionalIntent = (text) => {
   }
   return null;
 };
+
 
 /* ══════════════════════════════════════════════════════════════════════════
    MAIN CHAT HANDLER
@@ -332,7 +384,7 @@ exports.handleChatMessage = async (req, res) => {
         });
       }
 
-      // Gujlish NLP
+      // Gujlish / Custom Rule Intent Matcher
       const regionalIntent = detectRegionalIntent(cleanMsg);
       if (regionalIntent) {
         return res.json({
@@ -342,13 +394,24 @@ exports.handleChatMessage = async (req, res) => {
         });
       }
 
-      // Default
+      // Groq AI Integration (Ultra-fast LLaMA 3.3 70B Model)
+      const aiReply = await callGroqAI(cleanMsg);
+      if (aiReply) {
+        return res.json({
+          nextState: 'INIT',
+          reply: aiReply,
+          quickReplies: ['✨ Place an Order', '💬 Check Price', '📍 Delivery Info', '📦 Track Order']
+        });
+      }
+
+      // Default Fallback Response
       return res.json({
         nextState: 'INIT',
         reply: "Namaste! 🪧 I am your EverAura Creations AI Assistant for **Nadiad**.\n\nAsk me anything in English or Gujlish, or pick an option:",
         quickReplies: ['✨ Place an Order', '💬 Check Price', '📍 Delivery Info', '📦 Track Order', '🚫 Cancel Order']
       });
     }
+
 
     /* ── 5. Conversational Order State Machine ── */
     if (state === 'SELECT_SERVICE') {
