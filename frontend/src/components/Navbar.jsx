@@ -68,6 +68,14 @@ const Navbar = ({ lang, setLang }) => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') setNavOpen(false);
+    };
+    if (navOpen) window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [navOpen]);
+
   const handleLinkClick = (e, targetId) => {
     e.preventDefault();
     setNavOpen(false);
@@ -84,23 +92,26 @@ const Navbar = ({ lang, setLang }) => {
   };
 
   return (
-    <nav className={`navbar ${scrolled ? 'scrolled' : ''}`} id="navbar">
-      <div className="nav-container">
-        <a href="#home" className="nav-logo" onClick={(e) => handleLinkClick(e, 'home')}>
-          <CreamFlowerIcon />
-          <span className="logo-text">EverAura Creations</span>
-        </a>
-        
-        <button
-          className="nav-toggle"
-          id="navToggle"
-          aria-label="Toggle navigation"
-          onClick={() => setNavOpen(!navOpen)}
-        >
-          <span style={navOpen ? { transform: 'translateY(7px) rotate(45deg)' } : {}}></span>
-          <span style={navOpen ? { opacity: 0 } : {}}></span>
-          <span style={navOpen ? { transform: 'translateY(-7px) rotate(-45deg)' } : {}}></span>
-        </button>
+    <>
+      {navOpen && <div className="nav-backdrop" onClick={() => setNavOpen(false)} />}
+      <nav className={`navbar ${scrolled ? 'scrolled' : ''}`} id="navbar">
+        <div className="nav-container">
+          <a href="#home" className="nav-logo" onClick={(e) => handleLinkClick(e, 'home')}>
+            <CreamFlowerIcon />
+            <span className="logo-text">EverAura Creations</span>
+          </a>
+          
+          <button
+            className="nav-toggle"
+            id="navToggle"
+            aria-label="Toggle navigation"
+            onClick={() => setNavOpen(!navOpen)}
+            style={{ zIndex: 1001 }}
+          >
+            <span style={navOpen ? { transform: 'translateY(7px) rotate(45deg)', background: '#3d2b1a' } : {}}></span>
+            <span style={navOpen ? { opacity: 0 } : {}}></span>
+            <span style={navOpen ? { transform: 'translateY(-7px) rotate(-45deg)', background: '#3d2b1a' } : {}}></span>
+          </button>
 
         <ul className={`nav-links ${navOpen ? 'open' : ''}`} id="navLinks">
           <li>
@@ -188,7 +199,8 @@ const Navbar = ({ lang, setLang }) => {
         </ul>
       </div>
     </nav>
-  );
+  </>
+);
 };
 
 export default Navbar;

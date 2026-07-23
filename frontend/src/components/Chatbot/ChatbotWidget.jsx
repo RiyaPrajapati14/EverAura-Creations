@@ -74,6 +74,7 @@ const TypingDots = () => (
 /* ── ChatbotWidget ────────────────────────────────────────────────────── */
 const ChatbotWidget = ({ lang, setLang }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const [showCallout, setShowCallout] = useState(true);
   const [messages, setMessages] = useState([
     {
       sender: 'bot',
@@ -456,6 +457,11 @@ const ChatbotWidget = ({ lang, setLang }) => {
           box-shadow: 0 3px 10px rgba(184,115,74,0.35);
         }
         .cb-img-send-btn:hover { transform: translateY(-1px); box-shadow: 0 5px 14px rgba(184,115,74,0.45); }
+
+        @keyframes cbCalloutPop {
+          0% { opacity: 0; transform: translateY(12px) scale(0.92); }
+          100% { opacity: 1; transform: translateY(0) scale(1); }
+        }
       `}</style>
 
       <div style={{
@@ -466,10 +472,84 @@ const ChatbotWidget = ({ lang, setLang }) => {
         fontFamily: "'Jost', system-ui, sans-serif"
       }}>
 
+        {/* ── Popping Callout Bubble ── */}
+        {!isOpen && showCallout && (
+          <div
+            onClick={() => { setIsOpen(true); setShowCallout(false); }}
+            style={{
+              position: 'absolute',
+              bottom: '74px',
+              right: '0',
+              width: '290px',
+              background: 'rgba(255, 253, 250, 0.98)',
+              backdropFilter: 'blur(16px)',
+              border: '1.5px solid rgba(184, 115, 74, 0.35)',
+              borderRadius: '18px',
+              padding: '12px 14px',
+              boxShadow: '0 14px 36px rgba(44, 24, 16, 0.22), 0 2px 10px rgba(184, 115, 74, 0.15)',
+              animation: 'cbCalloutPop 0.35s cubic-bezier(0.34,1.56,0.64,1)',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: '10px',
+              zIndex: 99998
+            }}
+          >
+            <div style={{
+              width: '34px', height: '34px',
+              borderRadius: '50%',
+              background: 'linear-gradient(135deg, #8b4513, #b8734a)',
+              color: '#fff',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: '1.05rem',
+              flexShrink: 0,
+              boxShadow: '0 3px 10px rgba(184, 115, 74, 0.35)'
+            }}>
+              🤖
+            </div>
+            <div style={{ flex: 1 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '3px' }}>
+                <span style={{ fontSize: '0.78rem', fontWeight: 800, color: '#8b4513', letterSpacing: '0.02em' }}>
+                  EverAura AI Assistant
+                </span>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '0.68rem', color: '#16a34a', fontWeight: 700 }}>
+                  <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#22c55e', animation: 'chatbotPulse 1.5s infinite' }} />
+                  Online
+                </span>
+              </div>
+              <p style={{ margin: 0, fontSize: '0.8rem', color: '#3d2b1a', lineHeight: 1.45, fontWeight: 500 }}>
+                {lang === 'gu'
+                  ? "👋 કિંમતો જાણવા અથવા તમારો ઓર્ડર ટ્રેક કરવા અહીં AI સાથે વાત કરો!"
+                  : "👋 Need Help? Chat with AI Assistant for instant prices & live order tracking!"}
+              </p>
+              <div style={{ marginTop: '6px', fontSize: '0.72rem', color: '#b8734a', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <span>Tap to open chatbot</span> ➔
+              </div>
+            </div>
+            <button
+              onClick={(e) => { e.stopPropagation(); setShowCallout(false); }}
+              style={{
+                background: 'rgba(184, 115, 74, 0.1)',
+                border: 'none',
+                color: '#9e7a5f',
+                width: '20px', height: '20px',
+                borderRadius: '50%',
+                cursor: 'pointer',
+                fontSize: '0.75rem',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                flexShrink: 0
+              }}
+              title="Dismiss"
+            >
+              ✕
+            </button>
+          </div>
+        )}
+
         {/* ── FAB Button ── */}
         {!isOpen && (
           <button
-            onClick={() => setIsOpen(true)}
+            onClick={() => { setIsOpen(true); setShowCallout(false); }}
             title="Chat with EverAura AI Assistant"
             style={{
               width: '62px', height: '62px',
