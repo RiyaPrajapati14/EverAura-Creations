@@ -5,7 +5,9 @@ const qc      = require('../controllers/queryController');
 /* ── Customer (chatbot) endpoints ──────────────────────────────────────── */
 router.post('/',               qc.submitQuery);           // submit new query
 router.get('/check/:phone',    qc.checkRepliesForPhone);  // check replies by phone
+router.get('/id/:id',          qc.getQueryById);          // fetch single query by ID
 router.patch('/:id/seen',      qc.markSeenByUser);        // mark reply as seen by user
+router.post('/:id/customer-reply', qc.addCustomerReply);  // customer follows up
 
 /* ── Admin endpoints ────────────────────────────────────────────────────── */
 router.get('/',                qc.getAllQueries);          // all queries

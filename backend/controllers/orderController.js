@@ -121,60 +121,37 @@ const updateOrderStatus = async (req, res) => {
   }
 };
 
-// @desc    Generate urgent custom WhatsApp message link for a customer
-// @route   POST /api/orders/:id/message
-const sendMessage = async (req, res) => {
+// @desc    Add/update message for customer on an order (visible via tracker)
+// @route   POST /api/orders/:id/customer-message
+const updateCustomerMessage = async (req, res) => {
   try {
     const { id } = req.params;
     const { message } = req.body;
-    if (!message || !message.trim()) {
-      return res.status(400).json({ status: 'error', message: 'Message text is required.' });
-    }
 
-    let order = null;
-    if (getIsMongoConnected()) {
-      try { order = await Order.findOne({ order_id: id }); } catch (e) {}
-    }
-    if (!order) {
-      const locals = readOrdersFromFile();
-      order = locals.find(o => o.order_id === id) || null;
-    }
-    if (!order) return res.status(404).json({ status: 'error', message: 'Order not found.' });
+    let updatedOrder = null;
 
-    const { sendCustomMessage } = require('../utils/notifyStudio');
-    const waUrl = sendCustomMessage(order, message.trim());
-    return res.status(200).json({ status: 'success', waUrl });
-  } catch (err) {
-    console.error('Error generating message link:', err);
-    return res.status(500).json({ status: 'error', message: err.message });
-  }
-};
-
-// @desc    Generate bulk WhatsApp alert links (send same message to multiple orders)
-// @route   POST /api/orders/bulk-alert
-const bulkAlert = async (req, res) => {
-  try {
-    const { message, statusFilter } = req.body;
-    if (!message || !message.trim()) {
-      return res.status(400).json({ status: 'error', message: 'Message is required.' });
-    }
-    let allOrders = [];
     if (getIsMongoConnected()) {
       try {
-        const q = statusFilter && statusFilter !== 'All' ? { status: statusFilter } : {};
-        allOrders = await Order.find(q);
-      } catch (e) {}
+        updatedOrder = await Order.findOneAndUpdate(
+          { order_id: id },
+          { customer_message: message },
+          { new: true }
+        );
+      } catch (dbErr) {
+        console.error('MongoDB customer message update failed:', dbErr.message);
+      }
     }
-    if (allOrders.length === 0) {
-      let locals = readOrdersFromFile();
-      if (statusFilter && statusFilter !== 'All') locals = locals.filter(o => o.status === statusFilter);
-      allOrders = locals;
+
+    const fileUpdated = updateOrderInFile(id, { customer_message: message });
+    if (!updatedOrder) updatedOrder = fileUpdated;
+
+    if (!updatedOrder) {
+      return res.status(404).json({ status: 'error', message: 'Order not found.' });
     }
-    const { sendBulkAlert } = require('../utils/notifyStudio');
-    const links = sendBulkAlert(allOrders, message.trim());
-    return res.status(200).json({ status: 'success', count: links.length, links });
+
+    return res.status(200).json({ status: 'success', order: updatedOrder });
   } catch (err) {
-    console.error('Bulk alert error:', err);
+    console.error('Error updating customer message:', err);
     return res.status(500).json({ status: 'error', message: err.message });
   }
 };
@@ -237,4 +214,4 @@ const deleteOrder = async (req, res) => {
   }
 };
 
-module.exports = { submitOrder, getOrders, updateOrderStatus, addAdminNote, deleteOrder, sendMessage, bulkAlert, saveOrderRecord };
+module.exports = { submitOrder, getOrders, updateOrderStatus, addAdminNote, deleteOrder, updateCustomerMessage, saveOrderRecord };

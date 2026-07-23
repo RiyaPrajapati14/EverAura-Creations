@@ -1,28 +1,14 @@
 import React, { useState } from 'react';
+import { translations } from '../utils/translations';
 
-const serviceCategories = {
-  handmade: [
-    'Wedding Welcome Boards',
-    'Pre-Wedding Posters',
-    'Resin Art',
-    'Personalized Gifts & Decorations',
-    'Customized Cards & Gift Hampers',
-    'Wedding Items, Decor & More'
-  ],
-  digital: [
-    'Instagram Posts',
-    'Instagram Reels (Making)',
-    'Instagram Poster Designs',
-    'Invitation Cards (Digital)',
-    'Business Posters & Flyers',
-    'Business Visiting Cards',
-    'Festival Posters',
-    'Animation Videos (Birthday, Wedding, Baby Shower, etc.)',
-    'All Types of Creative Designs'
-  ]
-};
+const OrderForm = ({ lang }) => {
+  const t = translations[lang];
 
-const OrderForm = () => {
+  const serviceCategories = {
+    handmade: t.handmadeItems.map(item => item.title),
+    digital: t.digitalItems.map(item => item.title)
+  };
+
   const [formData, setFormData] = useState({
     customer_name: '',
     phone: '',
@@ -56,7 +42,7 @@ const OrderForm = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!formData.customer_name || !formData.phone || !formData.category || !formData.service_type || !formData.requirements) {
-      setErrorMsg('Please fill in all required fields marked with *');
+      setErrorMsg(t.orderErrorHeader);
       return;
     }
 
@@ -75,6 +61,7 @@ const OrderForm = () => {
       if (file) {
         data.append('reference_image', file);
       }
+      data.append('source', 'WEB_FORM');
 
       const response = await fetch('/submit-order', {
         method: 'POST',
@@ -85,11 +72,11 @@ const OrderForm = () => {
       if (response.ok && result.success) {
         setSubmitted(true);
       } else {
-        setErrorMsg(result.error || 'Failed to submit order. Please try again.');
+        setErrorMsg(result.error || t.orderErrorConnect);
       }
     } catch (err) {
       console.error('Order submission error:', err);
-      setErrorMsg('Could not connect to server. Please try submitting again.');
+      setErrorMsg(t.orderErrorConnect);
     } finally {
       setLoading(false);
     }
@@ -114,20 +101,20 @@ const OrderForm = () => {
     <section className="order section-pad" id="order">
       <div className="container">
         <div className="section-header">
-          <p className="section-label">Let's Create Together</p>
-          <h2 className="section-title">Place Your <em>Order</em></h2>
-          <p className="section-subtitle">Tell us about what you need and let us turn your vision into a beautiful reality</p>
+          <p className="section-label">{t.orderLabel}</p>
+          <h2 className="section-title">{t.orderTitle}<em>{t.orderTitleEm}</em></h2>
+          <p className="section-subtitle">{t.orderSubtitle}</p>
         </div>
 
         <div className="form-wrap">
           {submitted ? (
             <div className="order-success">
               <span className="success-icon">♥</span>
-              <h3>Thank You!</h3>
-              <p>Your order has been placed successfully.</p>
-              <p className="success-sub">We will review your requirements and contact you via WhatsApp / Phone shortly to confirm details.</p>
-              <button onClick={resetForm} className="btn btn-primary" style={{ marginTop: '20px' }}>
-                Place Another Order
+              <h3>{t.orderSuccessTitle}</h3>
+              <p>{t.orderSuccessText}</p>
+              <p className="success-sub">{t.orderSuccessSub}</p>
+              <button type="button" onClick={resetForm} className="btn btn-primary" style={{ marginTop: '20px' }}>
+                {t.orderAnotherBtn}
               </button>
             </div>
           ) : (
@@ -148,24 +135,24 @@ const OrderForm = () => {
 
               <div className="form-row">
                 <div className="form-group">
-                  <label htmlFor="customer_name">Your Name <span className="required">*</span></label>
+                  <label htmlFor="customer_name">{t.orderNameLabel}<span className="required">{t.requiredStar}</span></label>
                   <input
                     type="text"
                     id="customer_name"
                     name="customer_name"
-                    placeholder="e.g. Priya Sharma"
+                    placeholder={t.orderNamePlaceholder}
                     value={formData.customer_name}
                     onChange={handleChange}
                     required
                   />
                 </div>
                 <div className="form-group">
-                  <label htmlFor="phone">WhatsApp / Phone Number <span className="required">*</span></label>
+                  <label htmlFor="phone">{t.orderPhoneLabel}<span className="required">{t.requiredStar}</span></label>
                   <input
                     type="tel"
                     id="phone"
                     name="phone"
-                    placeholder="+91 XXXXX XXXXX"
+                    placeholder={t.orderPhonePlaceholder}
                     value={formData.phone}
                     onChange={handleChange}
                     required
@@ -175,18 +162,18 @@ const OrderForm = () => {
 
               <div className="form-row">
                 <div className="form-group">
-                  <label htmlFor="email">Email Address <span className="optional">(Optional)</span></label>
+                  <label htmlFor="email">{t.orderEmailLabel} <span className="optional">{t.optionalLabel}</span></label>
                   <input
                     type="email"
                     id="email"
                     name="email"
-                    placeholder="you@example.com"
+                    placeholder={t.orderEmailPlaceholder}
                     value={formData.email}
                     onChange={handleChange}
                   />
                 </div>
                 <div className="form-group">
-                  <label htmlFor="event_date">Event / Required Date <span className="optional">(Optional)</span></label>
+                  <label htmlFor="event_date">{t.orderDateLabel} <span className="optional">{t.optionalLabel}</span></label>
                   <input
                     type="date"
                     id="event_date"
@@ -199,7 +186,7 @@ const OrderForm = () => {
 
               <div className="form-row">
                 <div className="form-group">
-                  <label htmlFor="category">Select Category <span className="required">*</span></label>
+                  <label htmlFor="category">{t.orderCategoryLabel}<span className="required">{t.requiredStar}</span></label>
                   <select
                     id="category"
                     name="category"
@@ -207,14 +194,14 @@ const OrderForm = () => {
                     onChange={handleChange}
                     required
                   >
-                    <option value="">-- Choose Category --</option>
-                    <option value="handmade">Handmade Gifts &amp; Creations</option>
-                    <option value="digital">Digital &amp; Animation Services</option>
+                    <option value="">{t.orderCategoryChoose}</option>
+                    <option value="handmade">{t.orderCategoryHandmade}</option>
+                    <option value="digital">{t.orderCategoryDigital}</option>
                   </select>
                 </div>
 
                 <div className="form-group">
-                  <label htmlFor="service_type">Select Service <span className="required">*</span></label>
+                  <label htmlFor="service_type">{t.orderServiceLabel}<span className="required">{t.requiredStar}</span></label>
                   <select
                     id="service_type"
                     name="service_type"
@@ -223,7 +210,7 @@ const OrderForm = () => {
                     disabled={!formData.category}
                     required
                   >
-                    <option value="">-- Choose Service --</option>
+                    <option value="">{t.orderServiceChoose}</option>
                     {formData.category && serviceCategories[formData.category].map((srv, i) => (
                       <option key={i} value={srv}>{srv}</option>
                     ))}
@@ -232,11 +219,11 @@ const OrderForm = () => {
               </div>
 
               <div className="form-group full-width">
-                <label htmlFor="requirements">Customization Requirements &amp; Details <span className="required">*</span></label>
+                <label htmlFor="requirements">{t.orderRequirementsLabel}<span className="required">{t.requiredStar}</span></label>
                 <textarea
                   id="requirements"
                   name="requirements"
-                  placeholder="Tell us what you need — colors, names, theme, occasion, specific ideas, text to include, etc."
+                  placeholder={t.orderRequirementsPlaceholder}
                   value={formData.requirements}
                   onChange={handleChange}
                   required
@@ -244,7 +231,7 @@ const OrderForm = () => {
               </div>
 
               <div className="form-group full-width">
-                <label>Reference Image <span className="optional">(Optional)</span></label>
+                <label>{t.orderFileLabel} <span className="optional">{t.optionalLabel}</span></label>
                 <div className="file-upload-wrap">
                   <input
                     type="file"
@@ -257,13 +244,13 @@ const OrderForm = () => {
                     <span className="upload-icon">📁</span>
                     {file ? (
                       <div>
-                        <p style={{ fontWeight: 600, color: '#b8734a' }}>Selected: {file.name}</p>
-                        <p className="file-hint">Click or drag to choose a different file</p>
+                        <p style={{ fontWeight: 600, color: '#b8734a' }}>{t.orderFileSelected}{file.name}</p>
+                        <p className="file-hint">{t.orderFileChooseNew}</p>
                       </div>
                     ) : (
                       <div>
-                        <p>Click or drag image here to attach reference</p>
-                        <p className="file-hint">Supports PNG, JPG, JPEG up to 10MB</p>
+                        <p>{t.orderFilePlaceholder}</p>
+                        <p className="file-hint">{t.orderFileHint}</p>
                       </div>
                     )}
                   </div>
@@ -276,7 +263,7 @@ const OrderForm = () => {
                 disabled={loading}
                 style={{ fontSize: '1rem', padding: '16px' }}
               >
-                {loading ? 'Submitting Order...' : 'Submit Order via WhatsApp / Server'}
+                {loading ? t.orderSubmittingBtn : t.orderSubmitBtn}
               </button>
             </form>
           )}

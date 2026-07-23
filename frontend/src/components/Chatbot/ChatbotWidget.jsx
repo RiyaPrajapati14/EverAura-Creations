@@ -72,7 +72,7 @@ const TypingDots = () => (
 );
 
 /* ── ChatbotWidget ────────────────────────────────────────────────────── */
-const ChatbotWidget = () => {
+const ChatbotWidget = ({ lang, setLang }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState([
     {
@@ -94,6 +94,39 @@ const ChatbotWidget = () => {
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
   const inputRef = useRef(null);
+
+  useEffect(() => {
+    const handleOpenChat = () => setIsOpen(true);
+    window.addEventListener('open-chatbot', handleOpenChat);
+    return () => window.removeEventListener('open-chatbot', handleOpenChat);
+  }, []);
+
+  useEffect(() => {
+    setSessionData(prev => ({ ...prev, lang }));
+    if (state === 'LANG_SELECT' && lang) {
+      setState('INIT');
+      const now = new Date();
+      if (lang === 'en') {
+        setMessages([
+          {
+            sender: 'bot',
+            text: "Welcome to **EverAura Creations**! 🎨✨\n\nI'm your 24/7 AI Assistant for Nadiad's premier artisan studio. How can I help you today?",
+            quickReplies: ['✨ Place an Order', '💬 Check Price', '📍 Delivery Info', '📦 Track Order', '🚫 Cancel Order', '🗣️ Discuss a Query', '📬 Check My Replies'],
+            timestamp: now
+          }
+        ]);
+      } else {
+        setMessages([
+          {
+            sender: 'bot',
+            text: "**EverAura Creations** ma swagat che! 🎨✨\n\nHu tamaro 24/7 AI Assistant chu — Nadiad na premier artisan studio no! Su help kari shakhu tamne?",
+            quickReplies: ['✨ Place an Order', '💬 Check Price', '📍 Delivery Info', '📦 Track Order', '🚫 Cancel Order', '🗣️ Discuss a Query', '📬 Check My Replies'],
+            timestamp: now
+          }
+        ]);
+      }
+    }
+  }, [lang]);
 
   useEffect(() => {
     if (isOpen) {
@@ -156,7 +189,12 @@ const ChatbotWidget = () => {
 
       const data = await res.json();
       setState(data.nextState || 'INIT');
-      if (data.sessionData) setSessionData(data.sessionData);
+      if (data.sessionData) {
+        setSessionData(data.sessionData);
+        if (data.sessionData.lang && data.sessionData.lang !== lang) {
+          setLang(data.sessionData.lang);
+        }
+      }
 
       // Mark the just-sent user message as "delivered"
       setDeliveredIndices(prev => new Set([...prev, userMsgIndex]));

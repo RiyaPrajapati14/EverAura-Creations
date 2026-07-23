@@ -1,6 +1,9 @@
 import React from 'react';
+import { translations } from '../utils/translations';
 
-const Footer = ({ onOpenAdmin }) => {
+const Footer = ({ lang, onOpenAdmin }) => {
+  const t = translations[lang];
+
   const scrollTo = (e, id) => {
     e.preventDefault();
     const target = document.getElementById(id);
@@ -20,38 +23,38 @@ const Footer = ({ onOpenAdmin }) => {
               <span className="footer-ganesha" aria-hidden="true">🕉</span>
               <span className="logo-text">EverAura Creations</span>
             </div>
-            <p className="footer-tagline">&ldquo; You Imagine, We Create! &rdquo;</p>
-            <p className="footer-slogan">Handmade Gifts &amp; Digital Creations for Every Occasion</p>
+            <p className="footer-tagline">{t.footerTagline}</p>
+            <p className="footer-slogan">{t.footerSlogan}</p>
             <div className="footer-ornament" aria-hidden="true">♥ ♥ ♥</div>
           </div>
 
           <div className="footer-links-grid">
             <div className="footer-col">
-              <h4>Quick Links</h4>
+              <h4>{t.footerCol1}</h4>
               <ul>
-                <li><a href="#home" onClick={(e) => scrollTo(e, 'home')}>Home</a></li>
-                <li><a href="#about" onClick={(e) => scrollTo(e, 'about')}>About Us</a></li>
-                <li><a href="#services" onClick={(e) => scrollTo(e, 'services')}>Handmade Services</a></li>
-                <li><a href="#digital" onClick={(e) => scrollTo(e, 'digital')}>Digital Services</a></li>
+                <li><a href="#home" onClick={(e) => scrollTo(e, 'home')}>{t.navHome}</a></li>
+                <li><a href="#about" onClick={(e) => scrollTo(e, 'about')}>{t.navAbout}</a></li>
+                <li><a href="#services" onClick={(e) => scrollTo(e, 'services')}>{t.navServices}</a></li>
+                <li><a href="#digital" onClick={(e) => scrollTo(e, 'digital')}>{t.navDigital}</a></li>
               </ul>
             </div>
 
             <div className="footer-col">
-              <h4>Explore More</h4>
+              <h4>{t.footerCol2}</h4>
               <ul>
-                <li><a href="#gallery" onClick={(e) => scrollTo(e, 'gallery')}>Product Gallery</a></li>
-                <li><a href="#how-to-order" onClick={(e) => scrollTo(e, 'how-to-order')}>How to Order</a></li>
-                <li><a href="#reviews" onClick={(e) => scrollTo(e, 'reviews')}>Testimonials</a></li>
+                <li><a href="#gallery" onClick={(e) => scrollTo(e, 'gallery')}>{t.navGallery}</a></li>
+                <li><a href="#how-to-order" onClick={(e) => scrollTo(e, 'how-to-order')}>{t.navHowToOrder}</a></li>
+                <li><a href="#reviews" onClick={(e) => scrollTo(e, 'reviews')}>{t.navReviews}</a></li>
               </ul>
             </div>
 
             <div className="footer-col">
-              <h4>Connect With Us</h4>
+              <h4>{t.footerCol3}</h4>
               <ul>
-                <li><span style={{ color: 'rgba(255,255,255,0.9)', fontWeight: 600 }}>✨ 24/7 AI Order Assistant Available</span></li>
-                <li><span style={{ color: 'rgba(255,255,255,0.7)' }}>📍 Physical Delivery: Nadiad, Gujarat Only</span></li>
-                <li><span style={{ color: 'rgba(255,255,255,0.7)' }}>🌐 Digital Services Worldwide</span></li>
-                <li><span style={{ color: 'rgba(255,255,255,0.7)' }}>💌 Custom Requests Welcome</span></li>
+                <li><span style={{ color: 'rgba(255,255,255,0.9)', fontWeight: 600 }}>{t.footerInfo1}</span></li>
+                <li><span style={{ color: 'rgba(255,255,255,0.7)' }}>{t.footerInfo2}</span></li>
+                <li><span style={{ color: 'rgba(255,255,255,0.7)' }}>{t.footerInfo3}</span></li>
+                <li><span style={{ color: 'rgba(255,255,255,0.7)' }}>{t.footerInfo4}</span></li>
               </ul>
             </div>
           </div>
@@ -60,9 +63,10 @@ const Footer = ({ onOpenAdmin }) => {
 
       <div className="footer-bottom">
         <div className="container" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
-          <p>&copy; {new Date().getFullYear()} EverAura Creations. All Rights Reserved.</p>
-          <p className="footer-love">Made with ♥ in Nadiad for Special Moments</p>
+          <p>&copy; {new Date().getFullYear()} {t.footerRights}</p>
+          <p className="footer-love">{t.footerLove}</p>
           <button
+            type="button"
             onClick={onOpenAdmin}
             style={{
               background: 'transparent',
@@ -77,7 +81,7 @@ const Footer = ({ onOpenAdmin }) => {
             onMouseOver={(e) => e.target.style.background = 'rgba(232, 168, 124, 0.15)'}
             onMouseOut={(e) => e.target.style.background = 'transparent'}
           >
-            🔒 Studio Admin
+            {t.footerAdmin}
           </button>
         </div>
       </div>

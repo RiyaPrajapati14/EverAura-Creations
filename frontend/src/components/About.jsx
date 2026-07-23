@@ -1,13 +1,16 @@
 import React from 'react';
+import { translations } from '../utils/translations';
 
-const About = () => {
+const About = ({ lang }) => {
+  const t = translations[lang];
+
   return (
     <section className="about section-pad" id="about">
       <div className="container">
         <div className="section-header">
-          <p className="section-label">Our Story</p>
-          <h2 className="section-title">Where Imagination Meets <em>Craftsmanship</em></h2>
-          <p className="section-subtitle">Crafting personalized gifts and digital creations with care and devotion</p>
+          <p className="section-label">{t.aboutLabel}</p>
+          <h2 className="section-title">{t.aboutTitle}<em>{t.aboutTitleEm}</em></h2>
+          <p className="section-subtitle">{t.aboutSubtitle}</p>
         </div>
 
         <div className="about-grid">
@@ -32,26 +35,26 @@ const About = () => {
                 fontWeight: '600',
                 color: 'var(--text-dark)'
               }}>
-                EverAura Studio — Nadiad
+                {t.aboutStudio}
               </h3>
               <p style={{ fontSize: '0.9rem', color: 'var(--text-light)', maxWidth: '280px' }}>
-                [ No Image Available — Real studio and workshop photos coming soon ]
+                {t.aboutNoImage}
               </p>
             </div>
             <div className="about-badge">
-              ♥ Nadiad Home Studio
+              {t.aboutBadge}
             </div>
           </div>
 
           <div className="about-content">
             <p className="about-text">
-              Welcome to <strong>EverAura Creations</strong> — a newly started home-based craft studio located right here in <strong>Nadiad, Gujarat</strong>. Our business was founded on a simple, heartfelt belief: every special moment deserves to be celebrated with creativity and a genuine personal touch.
+              {t.aboutText1}
             </p>
             <p className="about-text">
-              As a growing beginner business, we pour our heart and soul into every single order. Whether it's a hand-lettered welcome board for your dream wedding, a custom resin keepsake holding precious memories, or a vibrant animation video for your little one's birthday — we ensure unmatched personal attention and care.
+              {t.aboutText2}
             </p>
             <p className="about-text">
-              We specialize in physical artisan treasures (delivered exclusively across <strong>Nadiad</strong>) as well as high-impact digital designs and invitations delivered online worldwide. Whatever you imagine, we create with warmth and dedication!
+              {t.aboutText3}
             </p>
           </div>
         </div>

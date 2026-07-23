@@ -20,7 +20,8 @@ const orderSchema = new mongoose.Schema({
     enum: ['Received', 'In Production', 'Ready for Delivery in Nadiad', 'Completed', 'Cancelled'],
     default: 'Received'
   },
-  admin_notes: { type: String, default: '' }
+  admin_notes: { type: String, default: '' },
+  customer_message: { type: String, default: '' }
 }, { timestamps: true });
 
 module.exports = mongoose.model('Order', orderSchema);

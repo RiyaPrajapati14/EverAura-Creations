@@ -1,13 +1,16 @@
 import React from 'react';
+import { translations } from '../utils/translations';
 
-const Reviews = () => {
+const Reviews = ({ lang }) => {
+  const t = translations[lang];
+
   return (
     <section className="reviews section-pad" id="reviews">
       <div className="container">
         <div className="section-header">
-          <p className="section-label">Testimonials</p>
-          <h2 className="section-title">What Our <em>Clients Say</em></h2>
-          <p className="section-subtitle">Real feedback and experiences from our valued customers</p>
+          <p className="section-label">{t.reviewsLabel}</p>
+          <h2 className="section-title">{t.reviewsTitle}<em>{t.reviewsTitleEm}</em></h2>
+          <p className="section-subtitle">{t.reviewsSubtitle}</p>
         </div>
 
         <div style={{
@@ -28,7 +31,7 @@ const Reviews = () => {
             color: 'var(--text-dark)',
             marginBottom: '12px'
           }}>
-            Client Reviews Are Coming Soon!
+            {t.reviewsSoonTitle}
           </h3>
           <p style={{
             fontSize: '0.98rem',
@@ -36,7 +39,7 @@ const Reviews = () => {
             lineHeight: '1.8',
             marginBottom: '24px'
           }}>
-            We are a growing, newly started home-based craft studio located in <strong>Nadiad, Gujarat</strong>. As we create more special memories and deliver our customized handmade and digital orders, genuine reviews and ratings from our customers will be showcased right here.
+            {t.reviewsSoonText}
           </p>
           <div style={{
             display: 'inline-block',
@@ -48,7 +51,7 @@ const Reviews = () => {
             fontWeight: '600',
             letterSpacing: '0.05em'
           }}>
-            ✦ Be among our very first happy customers in Nadiad! ✦
+            {t.reviewsSoonBadge}
           </div>
         </div>
       </div>

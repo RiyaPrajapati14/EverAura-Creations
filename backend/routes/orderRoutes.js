@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { submitOrder, getOrders, updateOrderStatus, addAdminNote, deleteOrder, sendMessage, bulkAlert } = require('../controllers/orderController');
+const { submitOrder, getOrders, updateOrderStatus, addAdminNote, deleteOrder, updateCustomerMessage } = require('../controllers/orderController');
 const { upload, duplicateToReadUploads } = require('../middleware/upload');
 
 // Flexible upload handler (supports any field name)
@@ -25,8 +25,7 @@ router.get('/orders', getOrders);
 router.put('/orders/:id/status', updateOrderStatus);
 router.post('/orders/:id/note', addAdminNote);
 router.delete('/orders/:id', deleteOrder);
-router.post('/orders/bulk-alert', bulkAlert);
-router.post('/orders/:id/message', sendMessage);
+router.post('/orders/:id/customer-message', updateCustomerMessage);
 
 module.exports = router;
 

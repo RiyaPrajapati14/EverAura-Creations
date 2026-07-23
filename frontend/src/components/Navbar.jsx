@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { translations } from '../utils/translations';
 
 const CreamFlowerIcon = () => (
   <svg width="30" height="30" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ display: 'inline-block', verticalAlign: 'middle', filter: 'drop-shadow(0 2px 6px rgba(184,115,74,0.3))', flexShrink: 0, marginRight: '8px' }}>
@@ -36,10 +37,11 @@ const CreamFlowerIcon = () => (
   </svg>
 );
 
-const Navbar = () => {
+const Navbar = ({ lang, setLang }) => {
   const [scrolled, setScrolled] = useState(false);
   const [navOpen, setNavOpen] = useState(false);
   const [activeSection, setActiveSection] = useState('home');
+  const t = translations[lang];
 
   useEffect(() => {
     const handleScroll = () => {
@@ -77,6 +79,10 @@ const Navbar = () => {
     }
   };
 
+  const toggleLanguage = (selectedLang) => {
+    setLang(selectedLang);
+  };
+
   return (
     <nav className={`navbar ${scrolled ? 'scrolled' : ''}`} id="navbar">
       <div className="nav-container">
@@ -103,7 +109,7 @@ const Navbar = () => {
               className={activeSection === 'home' ? 'active' : ''}
               onClick={(e) => handleLinkClick(e, 'home')}
             >
-              Home
+              {t.navHome}
             </a>
           </li>
           <li>
@@ -112,7 +118,7 @@ const Navbar = () => {
               className={activeSection === 'about' ? 'active' : ''}
               onClick={(e) => handleLinkClick(e, 'about')}
             >
-              About
+              {t.navAbout}
             </a>
           </li>
           <li>
@@ -121,7 +127,7 @@ const Navbar = () => {
               className={activeSection === 'services' ? 'active' : ''}
               onClick={(e) => handleLinkClick(e, 'services')}
             >
-              Services
+              {t.navServices}
             </a>
           </li>
           <li>
@@ -130,7 +136,7 @@ const Navbar = () => {
               className={activeSection === 'digital' ? 'active' : ''}
               onClick={(e) => handleLinkClick(e, 'digital')}
             >
-              Digital
+              {t.navDigital}
             </a>
           </li>
           <li>
@@ -139,7 +145,7 @@ const Navbar = () => {
               className={activeSection === 'gallery' ? 'active' : ''}
               onClick={(e) => handleLinkClick(e, 'gallery')}
             >
-              Gallery
+              {t.navGallery}
             </a>
           </li>
           <li>
@@ -148,7 +154,7 @@ const Navbar = () => {
               className={activeSection === 'reviews' ? 'active' : ''}
               onClick={(e) => handleLinkClick(e, 'reviews')}
             >
-              Reviews
+              {t.navReviews}
             </a>
           </li>
           <li>
@@ -157,8 +163,27 @@ const Navbar = () => {
               className="nav-cta"
               onClick={(e) => handleLinkClick(e, 'how-to-order')}
             >
-              How to Order
+              {t.navHowToOrder}
             </a>
+          </li>
+          <li className="lang-selector-li">
+            <div className="lang-selector-btn-wrap">
+              <button 
+                type="button"
+                className={`lang-btn ${lang === 'en' ? 'active' : ''}`} 
+                onClick={() => toggleLanguage('en')}
+              >
+                EN
+              </button>
+              <span className="lang-divider">|</span>
+              <button 
+                type="button"
+                className={`lang-btn ${lang === 'gu' ? 'active' : ''}`} 
+                onClick={() => toggleLanguage('gu')}
+              >
+                ગુજરાતી
+              </button>
+            </div>
           </li>
         </ul>
       </div>

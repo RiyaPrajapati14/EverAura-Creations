@@ -47,6 +47,7 @@ exports.submitQuery = async (req, res) => {
         queryText,
         status:        'open',
         adminReplies:  [],
+        customerReplies: [],
         isReadByAdmin: false,
         isSeenByUser:  false,
         createdAt:     new Date().toISOString()
@@ -170,6 +171,63 @@ exports.checkRepliesForPhone = async (req, res) => {
     }
   } catch (err) {
     res.status(500).json({ error: 'Failed to check replies.' });
+  }
+};
+
+/* ══════════════════════════════════════════════════════════════════════════
+   GET /api/queries/id/:id — Chatbot: check replies by Query ID
+══════════════════════════════════════════════════════════════════════════ */
+exports.getQueryById = async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (getIsMongoConnected()) {
+      const q = await Query.findOne({ queryId: id }).lean();
+      if (!q) return res.status(404).json({ error: 'Query not found.' });
+      return res.json(q);
+    } else {
+      const queries = readQueriesFromFile();
+      const q = queries.find(q => q.queryId === id);
+      if (!q) return res.status(404).json({ error: 'Query not found.' });
+      return res.json(q);
+    }
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch query by ID.' });
+  }
+};
+
+/* ══════════════════════════════════════════════════════════════════════════
+   POST /api/queries/:id/customer-reply — Customer adds a follow-up reply
+══════════════════════════════════════════════════════════════════════════ */
+exports.addCustomerReply = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { text } = req.body;
+    if (!text || !text.trim()) return res.status(400).json({ error: 'Reply text is required.' });
+
+    const reply = { text: text.trim(), repliedAt: new Date().toISOString() };
+
+    if (getIsMongoConnected()) {
+      const q = await Query.findOneAndUpdate(
+        { queryId: id },
+        { $push: { customerReplies: reply }, status: 'open', isReadByAdmin: false },
+        { new: true }
+      );
+      if (!q) return res.status(404).json({ error: 'Query not found.' });
+      return res.json({ success: true, query: q });
+    } else {
+      const queries = readQueriesFromFile();
+      const idx = queries.findIndex(q => q.queryId === id);
+      if (idx === -1) return res.status(404).json({ error: 'Query not found.' });
+      
+      if (!queries[idx].customerReplies) queries[idx].customerReplies = [];
+      queries[idx].customerReplies.push(reply);
+      queries[idx].status = 'open';
+      queries[idx].isReadByAdmin = false;
+      writeQueriesToFile(queries);
+      return res.json({ success: true, query: queries[idx] });
+    }
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to add customer reply.' });
   }
 };
 

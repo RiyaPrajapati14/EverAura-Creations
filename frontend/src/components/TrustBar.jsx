@@ -1,6 +1,9 @@
 import React from 'react';
+import { translations } from '../utils/translations';
 
-const TrustBar = () => {
+const TrustBar = ({ lang }) => {
+  const t = translations[lang];
+
   return (
     <section className="trust-bar">
       <div className="container">
@@ -8,25 +11,25 @@ const TrustBar = () => {
           <div className="trust-item">
             <span className="trust-icon">♥</span>
             <div>
-              <p className="trust-title">Made with Love</p>
+              <p className="trust-title">{t.trustLove}</p>
             </div>
           </div>
           <div className="trust-item">
             <span className="trust-icon">✦</span>
             <div>
-              <p className="trust-title">High Quality Work</p>
+              <p className="trust-title">{t.trustQuality}</p>
             </div>
           </div>
           <div className="trust-item">
             <span className="trust-icon">📍</span>
             <div>
-              <p className="trust-title">Local Nadiad Delivery</p>
+              <p className="trust-title">{t.trustDelivery}</p>
             </div>
           </div>
           <div className="trust-item">
             <span className="trust-icon">😊</span>
             <div>
-              <p className="trust-title">Customer Satisfaction</p>
+              <p className="trust-title">{t.trustSatisfaction}</p>
             </div>
           </div>
         </div>

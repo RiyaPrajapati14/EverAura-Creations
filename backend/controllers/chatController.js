@@ -24,9 +24,9 @@ const PRICE_CATALOG = {
     { name: 'Custom Resin Keychain / Magnet Set',          range: '₹150 – ₹350',    note: 'Per piece rate, bulk discounts available (min 10 pcs)' },
   ],
   digital: [
-    { name: 'Pre-Wedding Video Poster (Animated)',         range: '₹300 – ₹700',    note: 'HD animated poster, shared via WhatsApp/Drive link' },
+    { name: 'Pre-Wedding Video Poster (Animated)',         range: '₹300 – ₹700',    note: 'HD animated poster, shared via Email/Drive link' },
     { name: 'Instagram Reel & Story Design (set of 5)',    range: '₹250 – ₹600',    note: 'Branded aesthetic reels/stories, editable Canva file' },
-    { name: 'Digital Wedding Invitation (Animated)',       range: '₹400 – ₹900',    note: 'Full HD video invitation, shareable on WhatsApp' },
+    { name: 'Digital Wedding Invitation (Animated)',       range: '₹400 – ₹900',    note: 'Full HD video invitation, shareable online' },
     { name: 'Custom Logo & Brand Identity Design',        range: '₹500 – ₹1,200',  note: 'Logo + color palette + business card layout (PDF + PNG)' },
     { name: 'Birthday / Anniversary Invitation Card',     range: '₹200 – ₹500',    note: 'Digital printable or shareable format, same-day delivery' },
     { name: 'Social Media Post Design (set of 10)',        range: '₹400 – ₹800',    note: 'Instagram/Facebook posts with brand consistency' },
@@ -92,7 +92,7 @@ Studio Profile & Info:
 - Specialty: Handmade Gifts, Resin Art (Keepsakes, Coasters, Trays), Wedding Welcome Boards, Calligraphy Frames, Ring Ceremony Platters, Digital Wedding Invitations, Pre-wedding Video Posters, Social Media Reels & Brand Logos.
 - Location: Nadiad, Gujarat.
 - Physical Delivery: Free doorstep delivery across Nadiad.
-- Digital Delivery: Worldwide instant delivery via high-res WhatsApp / Google Drive link.
+- Digital Delivery: Worldwide instant delivery via high-res Email / Google Drive link.
 - Handmade Turnaround: 4 to 7 days.
 - Digital Turnaround: 24 to 48 hours.
 - Key Price Highlights: Welcome Boards (₹800-2800), Ring Platters (₹1200-2400), Resin Keepsakes (₹600-1400), Digital Invites (₹400-900), Video Posters (₹300-700).
@@ -293,7 +293,7 @@ exports.handleChatMessage = async (req, res) => {
     if (cleanMsg === '🚫 Cancel Order' || cleanMsg.toLowerCase() === 'cancel order' || cleanMsg.toLowerCase() === 'cancel my order') {
       return res.json({
         nextState: 'CANCEL_INPUT',
-        reply: "🚫 **Cancel an Order**\n\nPlease enter your **10-digit WhatsApp Number** or **Order ID** to find your order:",
+        reply: "🚫 **Cancel an Order**\n\nPlease enter your **10-digit Mobile Number** or **Order ID** to find your order:",
         quickReplies: ['🏠 Main Menu']
       });
     }
@@ -302,7 +302,7 @@ exports.handleChatMessage = async (req, res) => {
     if (cleanMsg === '📦 Track Order' || cleanMsg.toLowerCase() === 'track order' || cleanMsg.toLowerCase() === 'track my order') {
       return res.json({
         nextState: 'TRACK_ORDER_INPUT',
-        reply: "📦 **Live Order Tracking**\n\nPlease enter your **10-digit WhatsApp Number** or your **Order ID** (e.g. `20260716...`) to check your current status:",
+        reply: "📦 **Live Order Tracking**\n\nPlease enter your **10-digit Mobile Number** or your **Order ID** (e.g. `20260716...`) to check your current status:",
         quickReplies: ['✨ Place an Order', '📍 Delivery Info']
       });
     }
@@ -344,15 +344,24 @@ exports.handleChatMessage = async (req, res) => {
       if (foundOrders && foundOrders.length > 0) {
         const o = foundOrders[0];
         const timeline = formatStatusTimeline(o.status || 'Received');
+        
+        let replyMsg = `✅ **Order Found!**\n\n📌 **Order ID:** #${o.order_id}\n🎨 **Item:** ${o.product_required}\n📅 **Event Date:** ${o.event_date}\n👤 **Name:** ${o.customer_name}\n\n**📊 Order Progress:**\n${timeline}`;
+        
+        if (o.customer_message) {
+          replyMsg += `\n\n💬 **Message from Studio:**\n> _${o.customer_message}_`;
+        }
+        
+        replyMsg += `\n\n📍 Delivery Hub: **Nadiad, Gujarat** — Check back here for updates! ♥`;
+
         return res.json({
           nextState: 'INIT',
-          reply: `✅ **Order Found!**\n\n📌 **Order ID:** #${o.order_id}\n🎨 **Item:** ${o.product_required}\n📅 **Event Date:** ${o.event_date}\n👤 **Name:** ${o.customer_name}\n\n**📊 Order Progress:**\n${timeline}\n\n📍 Delivery Hub: **Nadiad, Gujarat** — We'll WhatsApp you when ready! ♥`,
+          reply: replyMsg,
           quickReplies: ['✨ Place an Order', '🚫 Cancel Order', '🏠 Main Menu']
         });
       } else {
         return res.json({
           nextState: 'INIT',
-          reply: `❌ No orders found for \`${cleanMsg}\`.\n\nDouble-check your **10-digit WhatsApp number** used at the time of ordering.\n\n👇 Would you like to place a new order instead?`,
+          reply: `❌ No orders found for \`${cleanMsg}\`.\n\nDouble-check your **10-digit Mobile Number** used at the time of ordering.\n\n👇 Would you like to place a new order instead?`,
           quickReplies: ['✨ Place an Order', '📦 Track Order', '🏠 Main Menu']
         });
       }
@@ -475,7 +484,7 @@ exports.handleChatMessage = async (req, res) => {
       if (cleanMsg === '📍 Delivery Info') {
         return res.json({
           nextState: 'INIT',
-          reply: "📍 **Delivery Information**\n\n🏠 **Physical Delivery:** Exclusively across **Nadiad, Gujarat** (free local doorstep delivery / pickup)\n\n🌐 **Digital Services:** Worldwide delivery via instant high-res WhatsApp / Google Drive link!\n\n⏰ Handmade: 4–7 days · Digital: 24–48 hours",
+          reply: "📍 **Delivery Information**\n\n🏠 **Physical Delivery:** Exclusively across **Nadiad, Gujarat** (free local doorstep delivery / pickup)\n\n🌐 **Digital Services:** Worldwide delivery via instant high-res Email / Google Drive link!\n\n⏰ Handmade: 4–7 days · Digital: 24–48 hours",
           quickReplies: ['✨ Place an Order', '💬 Check Price', '📦 Track Order', '🏠 Main Menu']
         });
       }
@@ -494,7 +503,7 @@ exports.handleChatMessage = async (req, res) => {
       if (cleanMsg === '📩 Send Query to Studio') {
         return res.json({
           nextState: 'SEND_QUERY_INPUT',
-          reply: "📩 **Send a Query to Our Studio**\n\nPlease type out your query or question below. We will personally review it and reply on WhatsApp as soon as possible! 📱",
+          reply: "📩 **Send a Query to Our Studio**\n\nPlease type out your query or question below. We will personally review it and reply right here as soon as possible! 📱",
           quickReplies: ['🏠 Main Menu']
         });
       }
@@ -659,19 +668,73 @@ exports.handleChatMessage = async (req, res) => {
       return res.json({
         nextState: 'CHECK_REPLIES_PHONE',
         reply: userLang === 'gu'
-          ? "📬 **Studio Replies Check Karo**\n\nTamaro **10-digit mobile number** enter karo je tame query submit karte vakhte use karyo hato:"
-          : "📬 **Check Studio Replies**\n\nPlease enter your **10-digit mobile number** that you used when submitting your query:",
+          ? "📬 **Studio Replies Check Karo**\n\nTamaro **10-digit mobile number** OR **Query ID** (e.g. `QRY-...`) enter karo:"
+          : "📬 **Check Studio Replies**\n\nPlease enter your **10-digit mobile number** OR your **Query ID** (e.g. `QRY-...`):",
         quickReplies: ['🏠 Main Menu'],
         sessionData
       });
     }
 
     if (state === 'CHECK_REPLIES_PHONE') {
+      const isQueryId = cleanMsg.toUpperCase().startsWith('QRY-');
+      
+      if (isQueryId) {
+        const queryId = cleanMsg.toUpperCase().trim();
+        let queryObj = null;
+        try {
+          await new Promise((resolve) => {
+            const fakeReq = { params: { id: queryId } };
+            const fakeRes = {
+              status: () => fakeRes,
+              json: (data) => { if (!data.error) queryObj = data; resolve(); }
+            };
+            queryCtrl.getQueryById(fakeReq, fakeRes);
+          });
+        } catch (err) { }
+        
+        if (!queryObj) {
+          return res.json({
+            nextState: 'CHECK_REPLIES_PHONE',
+            reply: `❌ Query **${queryId}** not found.\n\nPlease check the ID or enter your mobile number instead.`,
+            quickReplies: ['🏠 Main Menu']
+          });
+        }
+        
+        let threadMsg = `🔖 **Discussion Thread: ${queryObj.queryId}**\n\n`;
+        threadMsg += `👤 **You:** “${queryObj.queryText}”\n`;
+        
+        // Weave admin and customer replies chronologically
+        const allReplies = [
+          ...(queryObj.adminReplies || []).map(r => ({ ...r, sender: 'admin' })),
+          ...(queryObj.customerReplies || []).map(r => ({ ...r, sender: 'customer' }))
+        ].sort((a, b) => new Date(a.repliedAt) - new Date(b.repliedAt));
+        
+        allReplies.forEach(r => {
+          if (r.sender === 'admin') {
+            threadMsg += `💬 **Studio:** ${r.text}\n`;
+          } else {
+            threadMsg += `👤 **You:** ${r.text}\n`;
+          }
+        });
+        
+        if (queryObj.status === 'open' && (!queryObj.adminReplies || queryObj.adminReplies.length === 0)) {
+          threadMsg += `\n⏳ _Our studio team hasn't replied yet, but we'll respond soon!_`;
+        }
+        
+        return res.json({
+          nextState: 'CONTINUE_QUERY_INIT',
+          reply: threadMsg,
+          quickReplies: ['📝 Reply to Studio', '🗣️ Discuss a Query', '🏠 Main Menu'],
+          sessionData: { ...sessionData, active_query_id: queryObj.queryId }
+        });
+      }
+
+      // Existing phone number logic
       const cleanPhone = cleanMsg.replace(/[^0-9]/g, '');
       if (!/^[6-9]\d{9}$/.test(cleanPhone)) {
         return res.json({
           nextState: 'CHECK_REPLIES_PHONE',
-          reply: "⚠️ Please enter a valid **10-digit number** (e.g. `9876543210`):",
+          reply: "⚠️ Please enter a valid **10-digit number** (e.g. `9876543210`) OR a **Query ID**:",
           quickReplies: ['🏠 Main Menu']
         });
       }
@@ -702,23 +765,25 @@ exports.handleChatMessage = async (req, res) => {
       const repliedQueries = queries.filter(q => q.adminReplies && q.adminReplies.length > 0);
       const pendingQueries = queries.filter(q => !q.adminReplies || q.adminReplies.length === 0);
 
-      let replyMsg = `📬 **Studio Replies for +91 ${cleanPhone}**\n\n`;
+      let replyMsg = `📬 **Studio Queries for +91 ${cleanPhone}**\n\n`;
 
       if (repliedQueries.length > 0) {
         replyMsg += `✅ **${repliedQueries.length} Repl${repliedQueries.length > 1 ? 'ies' : 'y'} Received!**\n\n`;
         repliedQueries.slice(0, 3).forEach((q, i) => {
-          replyMsg += `**Query ${i + 1}:** “${q.queryText.slice(0, 80)}${q.queryText.length > 80 ? '…' : ''}”\n`;
+          replyMsg += `🔖 **ID:** \`${q.queryId}\`\n`;
+          replyMsg += `**Query:** “${q.queryText.slice(0, 80)}${q.queryText.length > 80 ? '…' : ''}”\n`;
           q.adminReplies.forEach((r, ri) => {
-            replyMsg += `💬 **Studio Reply ${ri + 1}:** ${r.text}\n`;
+            replyMsg += `💬 **Studio:** ${r.text}\n`;
           });
           replyMsg += `\n`;
         });
+        replyMsg += `💡 _Tip: You can reply back by entering your Query ID above!_\n\n`;
       }
 
       if (pendingQueries.length > 0) {
         replyMsg += `⏳ **${pendingQueries.length} Quer${pendingQueries.length > 1 ? 'ies' : 'y'} Pending Reply**\n`;
         pendingQueries.slice(0, 2).forEach((q) => {
-          replyMsg += `\u2022 “${q.queryText.slice(0, 60)}${q.queryText.length > 60 ? '…' : ''}”\n`;
+          replyMsg += `\u2022 [\`${q.queryId}\`] “${q.queryText.slice(0, 60)}${q.queryText.length > 60 ? '…' : ''}”\n`;
         });
         replyMsg += `\n_Our studio team will reply soon! 🙏_`;
       }
@@ -726,8 +791,60 @@ exports.handleChatMessage = async (req, res) => {
       return res.json({
         nextState: 'INIT',
         reply: replyMsg,
-        quickReplies: ['🗣️ Discuss a Query', '✨ Place an Order', '🏠 Main Menu']
+        quickReplies: ['📬 Check My Replies', '🗣️ Discuss a Query', '🏠 Main Menu']
       });
+    }
+
+    if (state === 'CONTINUE_QUERY_INIT') {
+      if (cleanMsg === '📝 Reply to Studio' && sessionData.active_query_id) {
+        return res.json({
+          nextState: 'CONTINUE_QUERY_TYPING',
+          reply: `✍️ **Replying to ${sessionData.active_query_id}**\n\nPlease type your follow-up message to the studio below:`,
+          quickReplies: ['🏠 Cancel & Main Menu'],
+          sessionData
+        });
+      }
+      // If they clicked something else, let it fall through to INIT logic
+      state = 'INIT';
+    }
+
+    if (state === 'CONTINUE_QUERY_TYPING') {
+      if (cleanMsg === '🏠 Cancel & Main Menu') {
+        return res.json({
+          nextState: 'INIT',
+          reply: "Okay, your reply was cancelled.",
+          quickReplies: ['✨ Place an Order', '🏠 Main Menu'],
+          sessionData: { ...sessionData, active_query_id: null }
+        });
+      }
+
+      let queryObj = null;
+      try {
+        await new Promise((resolve) => {
+          const fakeReq = { params: { id: sessionData.active_query_id }, body: { text: cleanMsg } };
+          const fakeRes = {
+            status: () => fakeRes,
+            json: (data) => { if (!data.error && data.query) queryObj = data.query; resolve(); }
+          };
+          queryCtrl.addCustomerReply(fakeReq, fakeRes);
+        });
+      } catch (err) {}
+
+      if (queryObj) {
+        return res.json({
+          nextState: 'INIT',
+          reply: `✅ **Reply Sent!**\n\nYour message has been added to ticket **${sessionData.active_query_id}**. The studio will be notified instantly!`,
+          quickReplies: ['📬 Check My Replies', '🏠 Main Menu'],
+          sessionData: { ...sessionData, active_query_id: null }
+        });
+      } else {
+        return res.json({
+          nextState: 'INIT',
+          reply: `❌ Sorry, we couldn't send your reply right now. Please try again later.`,
+          quickReplies: ['🏠 Main Menu'],
+          sessionData: { ...sessionData, active_query_id: null }
+        });
+      }
     }
 
 
@@ -789,7 +906,7 @@ exports.handleChatMessage = async (req, res) => {
     if (state === 'CUSTOMER_NAME') {
       return res.json({
         nextState: 'CUSTOMER_PHONE',
-        reply: `Thank you, **${cleanMsg}**! ♥\n\nWhat is your **10-digit WhatsApp Number**?\n*(Our artisan will contact you here when your order is ready — no email needed)*`,
+        reply: `Thank you, **${cleanMsg}**! ♥\n\nWhat is your **10-digit Mobile Number**?\n*(Our artisan will contact you here when your order is ready — no email needed)*`,
         quickReplies: ['🏠 Main Menu', '🔄 Start Over'],
         sessionData: { ...sessionData, customer_name: cleanMsg }
       });
@@ -849,7 +966,7 @@ exports.handleChatMessage = async (req, res) => {
 
         return res.json({
           nextState: 'INIT',
-          reply: `🎉 **Order Submitted Successfully!**\n\n📌 **Your Tracking ID:** \`#${orderId}\`\n\nThank you, **${orderRecord.customer_name}**! 🙏\n\nOur studio in **Nadiad** has received your request and will contact you on WhatsApp (+91 ${orderRecord.phone}) very soon.\n\n_Save your Tracking ID to check status anytime!_ ♥`,
+          reply: `🎉 **Order Submitted Successfully!**\n\n📌 **Your Tracking ID:** \`#${orderId}\`\n\nThank you, **${orderRecord.customer_name}**! 🙏\n\nOur studio in **Nadiad** has received your request and will process it very soon.\n\n_Save your Tracking ID to check status anytime!_ ♥`,
           quickReplies: ['📦 Track Order', '✨ Place Another Order', '🏠 Main Menu'],
           sessionData: {}
         });

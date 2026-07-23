@@ -1,60 +1,50 @@
 import React from 'react';
 import { Swiper, SwiperSlide } from 'swiper/react';
 import { Navigation, Pagination, Autoplay } from 'swiper/modules';
+import { translations } from '../utils/translations';
 
-const handmadeItems = [
-  {
-    icon: '🪧',
-    title: 'Wedding Welcome Boards',
-    desc: 'Stunning hand-lettered welcome boards that set the perfect tone for your big day.',
-    tag: 'Wedding Calligraphy',
-    fallbackGrad: 'linear-gradient(135deg, #f0ddd1, #e8c5a8, #d4956e)'
-  },
-  {
-    icon: '📸',
-    title: 'Pre-Wedding Posters',
-    desc: 'Beautifully designed posters to celebrate your love story before the wedding.',
-    tag: 'Pre-Wedding',
-    fallbackGrad: 'linear-gradient(135deg, #f8e8e8, #f0c5c5, #d4a8a8)'
-  },
-  {
-    icon: '🎨',
-    title: 'Resin Art',
-    desc: 'Unique resin art pieces, coasters, trays, and keepsakes with embedded florals.',
-    tag: 'Resin Keepsakes',
-    fallbackGrad: 'linear-gradient(135deg, #e8f0f5, #c5d8e8, #a8c4d4)'
-  },
-  {
-    icon: '🎁',
-    title: 'Personalized Gifts & Decorations',
-    desc: 'Custom gifts — name boards, photo frames, and decorative keepsakes made with love.',
-    tag: 'Handcrafted Gifts',
-    fallbackGrad: 'linear-gradient(135deg, #f5f0e8, #e8d5c5, #d4b8a8)'
-  },
-  {
-    icon: '💌',
-    title: 'Customized Cards & Gift Hampers',
-    desc: 'Handcrafted thank-you cards, greeting cards, and beautifully curated gift hampers.',
-    tag: 'Luxury Hampers',
-    fallbackGrad: 'linear-gradient(135deg, #f5e8f5, #e8c5d8, #d4a8c4)'
-  },
-  {
-    icon: '💍',
-    title: 'Wedding Items, Decor & More',
-    desc: 'Ring ceremony setups, bridal decor, and all handmade wedding essentials.',
-    tag: 'Ceremony Decor',
-    fallbackGrad: 'linear-gradient(135deg, #fdf0e8, #f5d5b8, #e8b882)'
-  }
-];
+const HandmadeServices = ({ lang }) => {
+  const t = translations[lang];
 
-const HandmadeServices = () => {
+  const handmadeItems = [
+    {
+      icon: '🪧',
+      fallbackGrad: 'linear-gradient(135deg, #f0ddd1, #e8c5a8, #d4956e)'
+    },
+    {
+      icon: '📸',
+      fallbackGrad: 'linear-gradient(135deg, #f8e8e8, #f0c5c5, #d4a8a8)'
+    },
+    {
+      icon: '🎨',
+      fallbackGrad: 'linear-gradient(135deg, #e8f0f5, #c5d8e8, #a8c4d4)'
+    },
+    {
+      icon: '🎁',
+      fallbackGrad: 'linear-gradient(135deg, #f5f0e8, #e8d5c5, #d4b8a8)'
+    },
+    {
+      icon: '💌',
+      fallbackGrad: 'linear-gradient(135deg, #f5e8f5, #e8c5d8, #d4a8c4)'
+    },
+    {
+      icon: '💍',
+      fallbackGrad: 'linear-gradient(135deg, #fdf0e8, #f5d5b8, #e8b882)'
+    }
+  ].map((item, idx) => ({
+    ...item,
+    title: t.handmadeItems[idx]?.title || '',
+    desc: t.handmadeItems[idx]?.desc || '',
+    tag: t.handmadeItems[idx]?.tag || ''
+  }));
+
   return (
     <section className="services section-pad" id="services">
       <div className="container">
         <div className="section-header">
-          <p className="section-label">Category 1 — Interactive Slider</p>
-          <h2 className="section-title">Handmade Gifts &amp; <em>Customized Creations</em></h2>
-          <p className="section-subtitle">Every piece handcrafted right here in Nadiad with patience, love, and attention to detail. Swipe or drag to explore!</p>
+          <p className="section-label">{t.handmadeLabel}</p>
+          <h2 className="section-title">{t.handmadeTitle}<em>{t.handmadeTitleEm}</em></h2>
+          <p className="section-subtitle">{t.handmadeSubtitle}</p>
         </div>
 
         <div className="slider-wrap">
@@ -111,7 +101,7 @@ const HandmadeServices = () => {
                       borderRadius: '16px',
                       border: '1px dashed var(--rose-gold)'
                     }}>
-                      No Image Available
+                      {t.handmadeNoImg}
                     </span>
                   </div>
                   <div className="slider-content">

@@ -1,12 +1,15 @@
 import React, { useEffect, useState } from 'react';
+import { translations } from '../utils/translations';
 
-const Hero = () => {
+const Hero = ({ lang }) => {
+  const t = translations[lang];
   const [typedText, setTypedText] = useState('');
-  const fullText = 'Crafted with Love, Made for Memories.';
+  const fullText = t.heroTagline;
   const [imgError, setImgError] = useState(false);
 
   useEffect(() => {
-    // Typewriter effect
+    // Typewriter effect resets when language changes
+    setTypedText('');
     let i = 0;
     const typeTimer = setTimeout(() => {
       const interval = setInterval(() => {
@@ -20,6 +23,10 @@ const Hero = () => {
       return () => clearInterval(interval);
     }, 1000);
 
+    return () => clearTimeout(typeTimer);
+  }, [fullText]);
+
+  useEffect(() => {
     // Parallax effect
     const handleScroll = () => {
       const scrolled = window.scrollY;
@@ -31,7 +38,6 @@ const Hero = () => {
 
     window.addEventListener('scroll', handleScroll);
     return () => {
-      clearTimeout(typeTimer);
       window.removeEventListener('scroll', handleScroll);
     };
   }, []);
@@ -65,21 +71,21 @@ const Hero = () => {
       
       <div className="hero-content">
         <div className="hero-ganesha" aria-hidden="true">🕉</div>
-        <p className="hero-pretitle">✦ Welcome to ✦</p>
-        <h1 className="hero-title">EverAura<br /><em>Creations</em></h1>
+        <p className="hero-pretitle">{t.heroWelcome}</p>
+        <h1 className="hero-title">{t.heroTitle1}<br /><em>{t.heroTitle2}</em></h1>
         <p className="hero-tagline" style={{ borderRight: typedText.length < fullText.length ? '2px solid rgba(255,255,255,0.5)' : 'none' }}>
           {typedText}
         </p>
-        <p className="hero-slogan">&ldquo; You Imagine, We Create! &rdquo;</p>
-        <p className="hero-desc">Handmade Gifts &amp; Digital Creations for Every Special Occasion</p>
+        <p className="hero-slogan">{t.heroSlogan}</p>
+        <p className="hero-desc">{t.heroDesc}</p>
         <div className="hero-buttons">
-          <button onClick={() => scrollTo('gallery')} className="btn btn-primary">View Our Work</button>
-          <button onClick={() => scrollTo('how-to-order')} className="btn btn-outline">How to Order</button>
+          <button type="button" onClick={() => scrollTo('gallery')} className="btn btn-primary">{t.heroViewWork}</button>
+          <button type="button" onClick={() => scrollTo('how-to-order')} className="btn btn-outline">{t.heroHowToOrder}</button>
         </div>
       </div>
 
       <div className="hero-scroll-hint">
-        <span>Scroll to explore</span>
+        <span>{t.heroScrollHint}</span>
         <div className="scroll-arrow"></div>
       </div>
 

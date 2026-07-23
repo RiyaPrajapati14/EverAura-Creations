@@ -299,6 +299,7 @@ const StudioAdmin = ({ isOpen, onClose }) => {
   const [showBulkAlert, setShowBulkAlert] = useState(false);
   const [expandedOrder, setExpandedOrder] = useState(null);
   const [noteInputs, setNoteInputs] = useState({});
+  const [customerMessageInputs, setCustomerMessageInputs] = useState({});
   const pinRef = useRef(null);
 
   /* ── Query-related state ── */
@@ -465,6 +466,24 @@ const StudioAdmin = ({ isOpen, onClose }) => {
     }
   };
 
+  const saveCustomerMessage = async (orderId) => {
+    const message = customerMessageInputs[orderId] || '';
+    try {
+      const res = await fetch(`/api/orders/${orderId}/customer-message`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message })
+      });
+      const data = await res.json();
+      if (data.status === 'success') {
+        setOrders(prev => prev.map(o => o.order_id === orderId ? { ...o, customer_message: message } : o));
+        showToast('💬 Customer message saved!');
+      }
+    } catch {
+      showToast('Failed to save customer message.', 'error');
+    }
+  };
+
   /* ── Mark query as read ── */
   const markQueryRead = async (queryId) => {
     try {
@@ -556,7 +575,7 @@ const StudioAdmin = ({ isOpen, onClose }) => {
 
       {/* Bulk Alert Modal */}
       {showBulkAlert && (
-        <BulkAlertModal orders={orders} onClose={() => setShowBulkAlert(false)} showToast={showToast} />
+        <BulkAlertModal onClose={() => setShowBulkAlert(false)} showToast={showToast} />
       )}
 
       {/* Toast */}
@@ -692,13 +711,6 @@ const StudioAdmin = ({ isOpen, onClose }) => {
                     </button>
                   ))}
                   <div style={{ marginLeft: 'auto', display: 'flex', gap: '6px', alignItems: 'center', padding: '6px 0' }}>
-                    <button
-                      onClick={() => setShowBulkAlert(true)}
-                      style={{ ...S.btn('#fdf0e0', '#d97706', '1px solid #fde68a'), fontSize: '0.78rem', padding: '6px 12px', borderRadius: '8px' }}
-                      title="Send urgent alert to multiple customers at once"
-                    >
-                      📢 Bulk Alert
-                    </button>
                     <button onClick={fetchOrders} disabled={loading} style={{ ...S.btn('#fdf3eb', '#b8734a', '1px solid rgba(184,115,74,0.3)'), fontSize: '0.8rem', padding: '6px 14px', borderRadius: '8px' }}>
                       {loading ? '🔄 Loading...' : '🔄 Refresh'}
                     </button>
@@ -770,7 +782,7 @@ const StudioAdmin = ({ isOpen, onClose }) => {
                                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: '12px' }}>
                                       {[
                                         { label: 'Customer Name',     value: order.customer_name },
-                                        { label: 'WhatsApp / Mobile', value: null, link: `https://wa.me/91${(order.phone || '').replace(/[^0-9]/g, '')}`, linkText: `💬 +91 ${order.phone}` },
+                                        { label: 'Mobile Number', value: '+91 ' + order.phone },
                                         { label: 'Product Requested', value: order.product_required, accent: true },
                                         { label: 'Event / Delivery Date', value: order.event_date || 'Not specified' },
                                       ].map(f => (
@@ -812,10 +824,6 @@ const StudioAdmin = ({ isOpen, onClose }) => {
                                       >
                                         {Object.keys(STATUS_CONFIG).map(s => <option key={s} value={s}>{STATUS_CONFIG[s].emoji} {s}</option>)}
                                       </select>
-                                      <a href={`https://wa.me/91${(order.phone || '').replace(/[^0-9]/g, '')}`} target="_blank" rel="noreferrer"
-                                        style={{ ...S.btn('#16a34a', '#fff'), boxShadow: '0 2px 8px #16a34a44', fontSize: '0.8rem', padding: '7px 14px', borderRadius: '8px', textDecoration: 'none', marginLeft: 'auto' }}>
-                                        💬 WhatsApp
-                                      </a>
                                     </div>
 
                                     {/* Admin notes */}
@@ -831,6 +839,22 @@ const StudioAdmin = ({ isOpen, onClose }) => {
                                           onKeyDown={e => e.key === 'Enter' && saveNote(order.order_id)}
                                         />
                                         <button onClick={() => saveNote(order.order_id)} style={{ ...S.btn('#fdf3eb', '#b8734a', '1px solid rgba(184,115,74,0.3)'), padding: '9px 16px', borderRadius: '10px' }}>Save</button>
+                                      </div>
+                                    </div>
+
+                                    {/* Customer Message */}
+                                    <div>
+                                      <span style={S.label}>💬 Message for Customer (visible when tracking)</span>
+                                      <div style={{ display: 'flex', gap: '8px', marginTop: '6px' }}>
+                                        <textarea
+                                          className="admin-input"
+                                          style={{ flex: 1, resize: 'vertical' }}
+                                          rows={2}
+                                          placeholder="Type a message for the customer to see when they check their order status..."
+                                          value={customerMessageInputs[order.order_id] !== undefined ? customerMessageInputs[order.order_id] : (order.customer_message || '')}
+                                          onChange={e => setCustomerMessageInputs(prev => ({ ...prev, [order.order_id]: e.target.value }))}
+                                        />
+                                        <button onClick={() => saveCustomerMessage(order.order_id)} style={{ ...S.btn('#f0fdf4', '#16a34a', '1px solid rgba(22,163,74,0.3)'), padding: '9px 16px', borderRadius: '10px' }}>Save Message</button>
                                       </div>
                                     </div>
 
@@ -936,26 +960,39 @@ const StudioAdmin = ({ isOpen, onClose }) => {
                                 {isExpanded && (
                                   <div style={{ padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
 
-                                    {/* Query text */}
-                                    <div style={{ background: '#fdf8f2', padding: '14px', borderRadius: '12px', borderLeft: '4px solid #b8734a' }}>
-                                      <span style={{ ...S.label, marginBottom: '6px' }}>💬 Customer Query</span>
-                                      <p style={{ margin: 0, color: '#3d2b1a', lineHeight: 1.6, fontSize: '0.9rem' }}>{q.queryText}</p>
-                                    </div>
-
-                                    {/* Previous admin replies */}
-                                    {hasReplies && (
-                                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                                        <span style={S.label}>📨 Studio Replies ({q.adminReplies.length})</span>
-                                        {q.adminReplies.map((r, ri) => (
-                                          <div key={ri} style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '10px', padding: '10px 14px' }}>
-                                            <div style={{ fontSize: '0.78rem', color: '#16a34a', fontWeight: 700, marginBottom: '4px' }}>
-                                              Reply #{ri + 1} · {new Date(r.repliedAt).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
-                                            </div>
-                                            <p style={{ margin: 0, color: '#166534', fontSize: '0.88rem', lineHeight: 1.5 }}>{r.text}</p>
-                                          </div>
-                                        ))}
+                                    {/* Discussion Thread */}
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                      {/* Original Query */}
+                                      <div style={{ background: '#fdf8f2', padding: '14px', borderRadius: '12px', borderLeft: '4px solid #b8734a' }}>
+                                        <span style={{ ...S.label, marginBottom: '6px' }}>💬 Initial Query</span>
+                                        <p style={{ margin: 0, color: '#3d2b1a', lineHeight: 1.6, fontSize: '0.9rem' }}>{q.queryText}</p>
                                       </div>
-                                    )}
+
+                                      {/* Weaved Replies */}
+                                      {(() => {
+                                        const allReplies = [
+                                          ...(q.adminReplies || []).map(r => ({ ...r, sender: 'admin' })),
+                                          ...(q.customerReplies || []).map(r => ({ ...r, sender: 'customer' }))
+                                        ].sort((a, b) => new Date(a.repliedAt) - new Date(b.repliedAt));
+
+                                        if (allReplies.length === 0) return null;
+
+                                        return allReplies.map((r, ri) => (
+                                          <div key={ri} style={{ 
+                                            background: r.sender === 'admin' ? '#f0fdf4' : '#fffcf9', 
+                                            border: `1px solid ${r.sender === 'admin' ? '#bbf7d0' : 'rgba(184,115,74,0.2)'}`, 
+                                            borderRadius: '10px', padding: '10px 14px',
+                                            marginLeft: r.sender === 'admin' ? '20px' : '0',
+                                            marginRight: r.sender === 'customer' ? '20px' : '0'
+                                          }}>
+                                            <div style={{ fontSize: '0.78rem', color: r.sender === 'admin' ? '#16a34a' : '#b8734a', fontWeight: 700, marginBottom: '4px' }}>
+                                              {r.sender === 'admin' ? 'Studio Reply' : 'Customer Follow-up'} · {new Date(r.repliedAt).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                                            </div>
+                                            <p style={{ margin: 0, color: r.sender === 'admin' ? '#166534' : '#3d2b1a', fontSize: '0.88rem', lineHeight: 1.5 }}>{r.text}</p>
+                                          </div>
+                                        ));
+                                      })()}
+                                    </div>
 
                                     {/* Reply composer */}
                                     <div style={{ background: '#f8f4ff', border: '1px solid #e9d5ff', borderRadius: '12px', padding: '14px' }}>

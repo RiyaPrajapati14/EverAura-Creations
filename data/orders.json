@@ -11,6 +11,7 @@
     "reference_image": null,
     "source": "AI_CHATBOT",
     "status": "Received",
-    "admin_notes": ""
+    "admin_notes": "",
+    "customer_message": "Hello, this is a test message from the studio!"
   }
 ]
