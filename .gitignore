@@ -1,8 +1,5 @@
-node_modules
-<<<<<<< HEAD
+node_modules/
 .env
 *.env
 dist/
 .DS_Store
-=======
->>>>>>> 71cb9ea4ce617c8e2d25dc9ff463fe14a4f11ccc
