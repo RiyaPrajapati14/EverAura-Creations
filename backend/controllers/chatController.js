@@ -298,6 +298,18 @@ exports.handleChatMessage = async (req, res) => {
       });
     }
 
+    /* ── Check My Replies — universal command, intercepts before INIT block ── */
+    if (cleanMsg === '📬 Check My Replies' || cleanMsg.toLowerCase() === 'check replies' || cleanMsg.toLowerCase() === 'check my replies') {
+      return res.json({
+        nextState: 'CHECK_REPLIES_PHONE',
+        reply: userLang === 'gu'
+          ? "📬 **Studio Replies Check Karo**\n\nTamaro **10-digit mobile number** OR **Query ID** (e.g. `QRY-...`) enter karo:"
+          : "📬 **Check Studio Replies**\n\nPlease enter your **10-digit mobile number** OR your **Query ID** (e.g. `QRY-...`):",
+        quickReplies: ['🏠 Main Menu'],
+        sessionData
+      });
+    }
+
     /* ── 1. Track Order — prompt for identifier ── */
     if (cleanMsg === '📦 Track Order' || cleanMsg.toLowerCase() === 'track order' || cleanMsg.toLowerCase() === 'track my order') {
       return res.json({
@@ -661,19 +673,8 @@ exports.handleChatMessage = async (req, res) => {
     }
 
     /* ══════════════════════════════════════════════════════════════════════════
-       CHECK MY REPLIES — Fetch admin replies from DB by phone number
-       Works from ANY state (universal command)
+       CHECK_REPLIES_PHONE state handler
     ══════════════════════════════════════════════════════════════════════════ */
-    if (cleanMsg === '📬 Check My Replies' || cleanMsg.toLowerCase() === 'check replies' || cleanMsg.toLowerCase() === 'check my replies') {
-      return res.json({
-        nextState: 'CHECK_REPLIES_PHONE',
-        reply: userLang === 'gu'
-          ? "📬 **Studio Replies Check Karo**\n\nTamaro **10-digit mobile number** OR **Query ID** (e.g. `QRY-...`) enter karo:"
-          : "📬 **Check Studio Replies**\n\nPlease enter your **10-digit mobile number** OR your **Query ID** (e.g. `QRY-...`):",
-        quickReplies: ['🏠 Main Menu'],
-        sessionData
-      });
-    }
 
     if (state === 'CHECK_REPLIES_PHONE') {
       const isQueryId = cleanMsg.toUpperCase().startsWith('QRY-');
