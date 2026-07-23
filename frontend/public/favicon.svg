@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <!-- EverAura Cream Background Gradient -->
+    <radialGradient id="eaCreamBg" cx="50%" cy="50%" r="60%">
+      <stop offset="0%" stop-color="#ffffff" />
+      <stop offset="70%" stop-color="#fdf8f2" />
+      <stop offset="100%" stop-color="#f5ece0" />
+    </radialGradient>
+
+    <!-- EverAura Rose Gold Accent Gradient (--rose-gold: #b8734a) -->
+    <linearGradient id="eaRoseGold" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#d4956e" />
+      <stop offset="50%" stop-color="#b8734a" />
+      <stop offset="100%" stop-color="#8b6343" />
+    </linearGradient>
+
+    <!-- Cream Petal Gradient (--cream & --beige) -->
+    <linearGradient id="eaPetal" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" />
+      <stop offset="60%" stop-color="#fdf8f2" />
+      <stop offset="100%" stop-color="#e8d5bc" />
+    </linearGradient>
+
+    <!-- Soft Artisan Shadow -->
+    <filter id="eaShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="6" stdDeviation="12" flood-color="#8b6343" flood-opacity="0.16" />
+    </filter>
+  </defs>
+
+  <!-- EverAura Soft Rounded Icon Base (Matches Theme Cream & Rose Gold) -->
+  <rect x="24" y="24" width="464" height="464" rx="110" fill="url(#eaCreamBg)" stroke="url(#eaRoseGold)" stroke-width="12" />
+
+  <!-- Artisan Floral Emblem matching EverAura Handmade & Resin Theme -->
+  <g filter="url(#eaShadow)">
+    <!-- 8 Delicate Fanning Cream Petals -->
+    <g fill="url(#eaPetal)" stroke="#b8734a" stroke-width="3">
+      <path d="M 256,256 C 210,130 210,70 256,70 C 302,70 302,130 256,256 Z" />
+      <path d="M 256,256 C 210,130 210,70 256,70 C 302,70 302,130 256,256 Z" transform="rotate(45 256 256)" />
+      <path d="M 256,256 C 210,130 210,70 256,70 C 302,70 302,130 256,256 Z" transform="rotate(90 256 256)" />
+      <path d="M 256,256 C 210,130 210,70 256,70 C 302,70 302,130 256,256 Z" transform="rotate(135 256 256)" />
+      <path d="M 256,256 C 210,130 210,70 256,70 C 302,70 302,130 256,256 Z" transform="rotate(180 256 256)" />
+      <path d="M 256,256 C 210,130 210,70 256,70 C 302,70 302,130 256,256 Z" transform="rotate(225 256 256)" />
+      <path d="M 256,256 C 210,130 210,70 256,70 C 302,70 302,130 256,256 Z" transform="rotate(270 256 256)" />
+      <path d="M 256,256 C 210,130 210,70 256,70 C 302,70 302,130 256,256 Z" transform="rotate(315 256 256)" />
+    </g>
+
+    <!-- Inner Rose Gold Ring & Core Center -->
+    <circle cx="256" cy="256" r="54" fill="#fdf8f2" stroke="url(#eaRoseGold)" stroke-width="5" />
+    <circle cx="256" cy="256" r="32" fill="url(#eaRoseGold)" />
+
+    <!-- Craft Heart Motif ("Crafted with Love, Made for Memories") -->
+    <path d="M 256,244 C 251,236 240,236 236,244 C 232,252 242,262 256,270 C 270,262 280,252 276,244 C 272,236 261,236 256,244 Z" fill="#ffffff" />
+  </g>
+</svg>
