@@ -1,12 +1,10 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 
 /* ── Simple Markdown Renderer ─────────────────────────────────────────────
    Converts **bold**, `code`, and \n → proper JSX without any dependencies.
 ────────────────────────────────────────────────────────────────────────── */
 const renderMarkdown = (text) => {
   if (!text) return null;
-
-  // Split on ** pairs (bold), backtick pairs (code), and newlines
   const parts = [];
   const regex = /\*\*(.+?)\*\*|`([^`]+)`|\n/g;
   let lastIndex = 0;
@@ -19,12 +17,9 @@ const renderMarkdown = (text) => {
     }
     if (match[0] === '\n') {
       parts.push(<br key={key++} />);
-
     } else if (match[1] !== undefined) {
-      // **bold**
       parts.push(<strong key={key++} style={{ fontWeight: 700, color: 'inherit' }}>{match[1]}</strong>);
     } else if (match[2] !== undefined) {
-      // `code`
       parts.push(
         <code key={key++} style={{
           background: 'rgba(184, 115, 74, 0.12)',
@@ -42,6 +37,12 @@ const renderMarkdown = (text) => {
     parts.push(<span key={key++}>{text.slice(lastIndex)}</span>);
   }
   return parts;
+};
+
+/* ── Format timestamp ────────────────────────────────────────────────── */
+const formatTime = (date) => {
+  const d = date instanceof Date ? date : new Date(date);
+  return d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
 };
 
 /* ── Typing Dots ──────────────────────────────────────────────────────── */
@@ -76,15 +77,19 @@ const ChatbotWidget = () => {
   const [messages, setMessages] = useState([
     {
       sender: 'bot',
-      text: "Namaste! Kem cho! Welcome to **EverAura Creations** — Nadiad's premier home craft studio. 🪧🎨\n\nI am your 24/7 AI Assistant. Ask me anything in English or Phonetic Gujarati (*e.g. 'Nadiad ma delivery thase?'*) or pick an option below:",
-      quickReplies: ["✨ Place an Order", "💬 Check Price", "📍 Delivery Info", "📦 Track Order", "🚫 Cancel Order"]
+      text: "Namaste! Kem cho! 🙏\n\n**EverAura Creations** ma aapno swagat che!\n\nPlease choose your preferred language:\n*(Tamari pasandida bhasha pasand karo:)*",
+      quickReplies: ['🇬🇧 English', '🇮🇳 Gujarati (ગુજરાતી)'],
+      timestamp: new Date()
     }
   ]);
   const [input, setInput] = useState('');
-  const [state, setState] = useState('INIT');
+  const [state, setState] = useState('LANG_SELECT');
   const [sessionData, setSessionData] = useState({});
   const [isLoading, setIsLoading] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
+  const [selectedFilePreview, setSelectedFilePreview] = useState(null);
+  // Track which user messages have been "delivered" (bot has replied since)
+  const [deliveredIndices, setDeliveredIndices] = useState(new Set());
 
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -102,14 +107,23 @@ const ChatbotWidget = () => {
     }
   }, [isOpen]);
 
-  const sendMessage = async (textToSend) => {
+  const sendMessage = useCallback(async (textToSend) => {
     const msgText = textToSend !== undefined ? textToSend : input;
     if (!msgText.trim() && !selectedFile) return;
 
-    // Append user message + clear quick replies from all previous messages
+    const now = new Date();
+    const userMsgIndex = messages.filter(m => m.sender === 'user').length;
+
+    // Append user message
     setMessages(prev => [
       ...prev.map(m => ({ ...m, quickReplies: null })),
-      { sender: 'user', text: msgText }
+      {
+        sender: 'user',
+        text: msgText,
+        timestamp: now,
+        status: 'sent',
+        imagePreview: selectedFilePreview
+      }
     ]);
     if (textToSend === undefined) setInput('');
     setIsLoading(true);
@@ -117,15 +131,21 @@ const ChatbotWidget = () => {
     try {
       let updatedSessionData = { ...sessionData };
 
+      // Upload image if selected
       if (selectedFile) {
         const formData = new FormData();
         formData.append('referenceImage', selectedFile);
-        const uploadRes = await fetch('/api/chat/upload', { method: 'POST', body: formData });
-        const uploadData = await uploadRes.json();
-        if (uploadData.success) {
-          updatedSessionData.reference_image = uploadData.imageUrl;
+        try {
+          const uploadRes = await fetch('/api/chat/upload', { method: 'POST', body: formData });
+          const uploadData = await uploadRes.json();
+          if (uploadData.success) {
+            updatedSessionData.reference_image = uploadData.imageUrl;
+          }
+        } catch (uploadErr) {
+          console.error('Image upload error:', uploadErr);
         }
         setSelectedFile(null);
+        setSelectedFilePreview(null);
       }
 
       const res = await fetch('/api/chat', {
@@ -138,22 +158,27 @@ const ChatbotWidget = () => {
       setState(data.nextState || 'INIT');
       if (data.sessionData) setSessionData(data.sessionData);
 
-      // If backend sends a customerWaUrl (from Send Query flow), append a WhatsApp link message
+      // Mark the just-sent user message as "delivered"
+      setDeliveredIndices(prev => new Set([...prev, userMsgIndex]));
+
+      const botTimestamp = new Date();
+
       if (data.customerWaUrl) {
         setMessages(prev => [
           ...prev,
-          { sender: 'bot', text: data.reply, quickReplies: data.quickReplies || null },
+          { sender: 'bot', text: data.reply, quickReplies: data.quickReplies || null, timestamp: botTimestamp },
           {
             sender: 'bot',
             text: `💬 **Tap below to message us on WhatsApp directly:**`,
             quickReplies: null,
-            waButton: data.customerWaUrl
+            waButton: data.customerWaUrl,
+            timestamp: new Date()
           }
         ]);
       } else {
         setMessages(prev => [
           ...prev,
-          { sender: 'bot', text: data.reply, quickReplies: data.quickReplies || null }
+          { sender: 'bot', text: data.reply, quickReplies: data.quickReplies || null, timestamp: botTimestamp }
         ]);
       }
     } catch {
@@ -162,23 +187,35 @@ const ChatbotWidget = () => {
         {
           sender: 'bot',
           text: "⚠️ Sorry, I encountered a brief connection issue. Please try again or click **✨ Place an Order** below!",
-          quickReplies: ["✨ Place an Order", "📍 Delivery Info"]
+          quickReplies: ['✨ Place an Order', '📍 Delivery Info'],
+          timestamp: new Date()
         }
       ]);
     } finally {
       setIsLoading(false);
     }
-  };
-
+  }, [input, selectedFile, selectedFilePreview, sessionData, state, messages]);
 
   const handleFileChange = (e) => {
     if (e.target.files?.[0]) {
       const file = e.target.files[0];
       setSelectedFile(file);
-      if (state === 'UPLOAD_IMAGE') {
-        sendMessage(`Attached file: ${file.name}`);
-      }
+      // Create preview URL
+      const previewUrl = URL.createObjectURL(file);
+      setSelectedFilePreview(previewUrl);
     }
+  };
+
+  // Determine if a chip set should use grid layout (main menu type)
+  const isMainMenuChips = (chips) => chips && chips.length >= 4;
+
+  // Count total user messages for delivery tracking
+  const getUserMsgCount = (msgs, idx) => {
+    let count = 0;
+    for (let i = 0; i <= idx; i++) {
+      if (msgs[i].sender === 'user') count++;
+    }
+    return count - 1; // zero-indexed
   };
 
   return (
@@ -198,23 +235,72 @@ const ChatbotWidget = () => {
           from { opacity: 0; transform: translateY(18px) scale(0.96); }
           to   { opacity: 1; transform: translateY(0) scale(1); }
         }
-        .chatbot-qr-btn {
+        @keyframes msgFadeIn {
+          from { opacity: 0; transform: translateY(8px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+
+        /* ── Quick Reply Chips ── */
+        .cb-chip {
           background: #fdf8f2;
           border: 1.5px solid #b8734a;
-          padding: 6px 13px;
+          padding: 8px 14px;
           border-radius: 20px;
-          font-size: 0.8rem;
-          color: #b8734a;
+          font-size: 0.82rem;
+          color: #7a4a2a;
           cursor: pointer;
-          font-weight: 500;
-          transition: background 0.18s, color 0.18s, transform 0.15s;
+          font-weight: 600;
+          transition: background 0.18s, color 0.18s, transform 0.15s, box-shadow 0.18s;
           white-space: nowrap;
+          display: flex;
+          align-items: center;
+          gap: 4px;
+          letter-spacing: 0.01em;
         }
-        .chatbot-qr-btn:hover {
-          background: #b8734a;
+        .cb-chip:hover:not(:disabled) {
+          background: linear-gradient(135deg, #b8734a, #c49a72);
           color: #fff;
-          transform: translateY(-1px);
+          transform: translateY(-2px);
+          box-shadow: 0 4px 12px rgba(184,115,74,0.35);
         }
+        .cb-chip:active:not(:disabled) { transform: scale(0.96); }
+        .cb-chip:disabled { opacity: 0.45; cursor: not-allowed; }
+
+        /* ── Grid layout for main-menu chips ── */
+        .cb-chips-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 7px;
+          width: 100%;
+          max-width: 310px;
+        }
+        .cb-chips-grid .cb-chip {
+          justify-content: flex-start;
+          white-space: normal;
+          text-align: left;
+        }
+        /* Language chips — side by side, larger */
+        .cb-chips-lang {
+          display: flex;
+          gap: 8px;
+          flex-wrap: wrap;
+        }
+        .cb-chips-lang .cb-chip {
+          flex: 1;
+          justify-content: center;
+          padding: 10px 16px;
+          font-size: 0.88rem;
+          border-width: 2px;
+        }
+        /* Inline chips — horizontal wrap */
+        .cb-chips-inline {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 6px;
+          max-width: 90%;
+        }
+
+        /* ── Input field ── */
         .chatbot-input {
           flex: 1;
           padding: 10px 14px;
@@ -232,6 +318,8 @@ const ChatbotWidget = () => {
           box-shadow: 0 0 0 3px rgba(184,115,74,0.12);
         }
         .chatbot-input::placeholder { color: #b8a090; }
+
+        /* ── Send button ── */
         .chatbot-send-btn {
           width: 40px; height: 40px;
           border-radius: 50%;
@@ -250,9 +338,86 @@ const ChatbotWidget = () => {
           box-shadow: 0 6px 18px rgba(184,115,74,0.5);
         }
         .chatbot-send-btn:disabled { opacity: 0.45; cursor: not-allowed; box-shadow: none; }
+
+        /* ── Scrollbar ── */
         .chatbot-messages::-webkit-scrollbar { width: 4px; }
         .chatbot-messages::-webkit-scrollbar-track { background: transparent; }
         .chatbot-messages::-webkit-scrollbar-thumb { background: rgba(184,115,74,0.25); border-radius: 4px; }
+
+        /* ── Image preview in bubble ── */
+        .cb-img-preview {
+          max-width: 180px;
+          border-radius: 10px;
+          margin-bottom: 6px;
+          display: block;
+          border: 2px solid rgba(255,255,255,0.35);
+        }
+
+        /* ── Message tick / timestamp row ── */
+        .cb-meta {
+          display: flex;
+          align-items: center;
+          gap: 4px;
+          font-size: 0.68rem;
+          color: #b8a090;
+          margin-top: 3px;
+        }
+        .cb-meta-user {
+          justify-content: flex-end;
+          color: rgba(184,115,74,0.7);
+        }
+        .cb-tick { font-size: 0.75rem; }
+        .cb-tick-delivered { color: #4ade80; }
+
+        /* ── Header menu btn ── */
+        .cb-menu-btn {
+          background: rgba(255,255,255,0.15);
+          border: 1px solid rgba(255,255,255,0.25);
+          color: #fff;
+          width: 30px; height: 30px;
+          border-radius: 50%;
+          cursor: pointer;
+          display: flex; align-items: center; justify-content: center;
+          font-size: 1rem;
+          transition: background 0.15s;
+          flex-shrink: 0;
+        }
+        .cb-menu-btn:hover { background: rgba(255,255,255,0.28); }
+
+        /* ── WhatsApp button ── */
+        .cb-wa-btn {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          background: #25D366;
+          color: #fff;
+          border: none;
+          padding: 9px 16px;
+          border-radius: 20px;
+          font-size: 0.85rem;
+          font-weight: 600;
+          cursor: pointer;
+          text-decoration: none;
+          transition: background 0.18s, transform 0.15s;
+          margin-top: 4px;
+        }
+        .cb-wa-btn:hover { background: #128C7E; transform: translateY(-1px); }
+
+        /* ── Image send button ── */
+        .cb-img-send-btn {
+          background: linear-gradient(135deg, #b8734a, #c49a72);
+          color: #fff;
+          border: none;
+          padding: 9px 18px;
+          border-radius: 20px;
+          font-size: 0.85rem;
+          font-weight: 600;
+          cursor: pointer;
+          display: flex; align-items: center; gap: 6px;
+          transition: transform 0.15s, box-shadow 0.15s;
+          box-shadow: 0 3px 10px rgba(184,115,74,0.35);
+        }
+        .cb-img-send-btn:hover { transform: translateY(-1px); box-shadow: 0 5px 14px rgba(184,115,74,0.45); }
       `}</style>
 
       <div style={{
@@ -290,7 +455,7 @@ const ChatbotWidget = () => {
         {isOpen && (
           <div style={{
             width: 'min(390px, 95vw)',
-            height: 'min(600px, 88vh)',
+            height: 'min(620px, 90vh)',
             background: 'rgba(255, 253, 250, 0.97)',
             backdropFilter: 'blur(18px)',
             borderRadius: '22px',
@@ -333,23 +498,25 @@ const ChatbotWidget = () => {
                   </div>
                 </div>
               </div>
-              <button
-                onClick={() => setIsOpen(false)}
-                style={{
-                  background: 'rgba(255,255,255,0.15)',
-                  border: '1px solid rgba(255,255,255,0.25)',
-                  color: '#fff',
-                  width: '30px', height: '30px',
-                  borderRadius: '50%',
-                  cursor: 'pointer',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: '1rem',
-                  transition: 'background 0.15s',
-                  flexShrink: 0
-                }}
-                onMouseOver={e => e.currentTarget.style.background = 'rgba(255,255,255,0.28)'}
-                onMouseOut={e => e.currentTarget.style.background = 'rgba(255,255,255,0.15)'}
-              >✕</button>
+
+              {/* Header action buttons */}
+              <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                {/* ☰ Menu button */}
+                <button
+                  className="cb-menu-btn"
+                  onClick={() => sendMessage('🏠 Main Menu')}
+                  title="Main Menu"
+                  disabled={isLoading}
+                >
+                  ☰
+                </button>
+                {/* ✕ Close button */}
+                <button
+                  onClick={() => setIsOpen(false)}
+                  className="cb-menu-btn"
+                  title="Close"
+                >✕</button>
+              </div>
             </div>
 
             {/* Privacy Banner */}
@@ -376,84 +543,135 @@ const ChatbotWidget = () => {
                 overflowY: 'auto',
                 display: 'flex',
                 flexDirection: 'column',
-                gap: '12px',
+                gap: '14px',
                 background: 'linear-gradient(180deg, rgba(253,248,242,0.6) 0%, rgba(255,253,250,0.4) 100%)'
               }}
             >
-              {messages.map((msg, idx) => (
-                <div key={idx} style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: msg.sender === 'user' ? 'flex-end' : 'flex-start',
-                  gap: '6px'
-                }}>
-                  {/* Bubble */}
-                  <div style={{
-                    maxWidth: '83%',
-                    padding: '11px 15px',
-                    borderRadius: msg.sender === 'user' ? '18px 18px 4px 18px' : '18px 18px 18px 4px',
-                    background: msg.sender === 'user'
-                      ? 'linear-gradient(135deg, #b8734a, #c49a72)'
-                      : '#fff',
-                    color: msg.sender === 'user' ? '#fff' : '#3d2b1a',
-                    boxShadow: msg.sender === 'user'
-                      ? '0 4px 14px rgba(184,115,74,0.35)'
-                      : '0 2px 10px rgba(0,0,0,0.06)',
-                    border: msg.sender === 'bot' ? '1px solid rgba(184,115,74,0.15)' : 'none',
-                    fontSize: '0.89rem',
-                    lineHeight: '1.55',
-                    wordBreak: 'break-word'
+              {messages.map((msg, idx) => {
+                const isUser = msg.sender === 'user';
+                const userIdx = isUser ? getUserMsgCount(messages, idx) : -1;
+                const isDelivered = isUser && deliveredIndices.has(userIdx);
+                const isLastMsg = idx === messages.length - 1;
+
+                // Decide chip layout class
+                let chipClass = 'cb-chips-inline';
+                if (msg.quickReplies && msg.quickReplies.length === 2 &&
+                    (msg.quickReplies[0].includes('English') || msg.quickReplies[0].includes('🇬🇧'))) {
+                  chipClass = 'cb-chips-lang';
+                } else if (isMainMenuChips(msg.quickReplies)) {
+                  chipClass = 'cb-chips-grid';
+                }
+
+                return (
+                  <div key={idx} style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: isUser ? 'flex-end' : 'flex-start',
+                    gap: '4px',
+                    animation: 'msgFadeIn 0.22s ease-out'
                   }}>
-                    {renderMarkdown(msg.text)}
-                  </div>
+                    {/* Image preview (user uploaded) */}
+                    {isUser && msg.imagePreview && (
+                      <div style={{ maxWidth: '83%', display: 'flex', justifyContent: 'flex-end' }}>
+                        <img
+                          src={msg.imagePreview}
+                          alt="Attached"
+                          className="cb-img-preview"
+                          style={{ maxWidth: '160px', borderRadius: '12px', border: '2px solid rgba(184,115,74,0.3)' }}
+                        />
+                      </div>
+                    )}
 
-                  {/* Quick Reply Chips — only show on last bot message */}
-                  {msg.quickReplies && idx === messages.length - 1 && (
-
+                    {/* Bubble */}
                     <div style={{
-                      display: 'flex',
-                      flexWrap: 'wrap',
-                      gap: '6px',
-                      maxWidth: '90%'
+                      maxWidth: '83%',
+                      padding: '11px 15px',
+                      borderRadius: isUser ? '18px 18px 4px 18px' : '18px 18px 18px 4px',
+                      background: isUser
+                        ? 'linear-gradient(135deg, #b8734a, #c49a72)'
+                        : '#fff',
+                      color: isUser ? '#fff' : '#3d2b1a',
+                      boxShadow: isUser
+                        ? '0 4px 14px rgba(184,115,74,0.35)'
+                        : '0 2px 10px rgba(0,0,0,0.06)',
+                      border: !isUser ? '1px solid rgba(184,115,74,0.15)' : 'none',
+                      fontSize: '0.89rem',
+                      lineHeight: '1.55',
+                      wordBreak: 'break-word'
                     }}>
-                      {msg.quickReplies.map((qr, qIdx) => (
-                        <button
-                          key={qIdx}
-                          className="chatbot-qr-btn"
-                          onClick={() => sendMessage(qr)}
-                          disabled={isLoading}
-                        >
-                          {qr}
-                        </button>
-                      ))}
+                      {renderMarkdown(msg.text)}
                     </div>
-                  )}
-                </div>
-              ))}
+
+                    {/* WhatsApp button */}
+                    {msg.waButton && (
+                      <a href={msg.waButton} target="_blank" rel="noopener noreferrer" className="cb-wa-btn">
+                        <span>💬</span> Open WhatsApp
+                      </a>
+                    )}
+
+                    {/* Timestamp + tick row */}
+                    <div className={`cb-meta ${isUser ? 'cb-meta-user' : ''}`}>
+                      <span>{formatTime(msg.timestamp)}</span>
+                      {isUser && (
+                        <span className={`cb-tick ${isDelivered ? 'cb-tick-delivered' : ''}`}>
+                          {isDelivered ? '✓✓' : '✓'}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Quick Reply Chips — only show on last bot message */}
+                    {msg.quickReplies && isLastMsg && !isLoading && (
+                      <div className={chipClass}>
+                        {msg.quickReplies.map((qr, qIdx) => (
+                          <button
+                            key={qIdx}
+                            className="cb-chip"
+                            onClick={() => sendMessage(qr)}
+                            disabled={isLoading}
+                          >
+                            {qr}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
 
               {/* Typing Indicator */}
               {isLoading && <TypingDots />}
               <div ref={messagesEndRef} />
             </div>
 
-            {/* File Attachment Preview */}
+            {/* Image Attachment Preview Bar */}
             {selectedFile && (
               <div style={{
                 background: '#fdf3eb',
-                padding: '7px 14px',
-                fontSize: '0.8rem',
-                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                padding: '10px 14px',
+                fontSize: '0.82rem',
+                display: 'flex', flexDirection: 'column', gap: '8px',
                 borderTop: '1px solid rgba(184,115,74,0.18)',
-                flexShrink: 0,
-                gap: '8px'
+                flexShrink: 0
               }}>
-                <span style={{ color: '#8b4513', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  📎 {selectedFile.name}
-                </span>
-                <button
-                  onClick={() => setSelectedFile(null)}
-                  style={{ background: 'none', border: 'none', color: '#dc2626', cursor: 'pointer', fontWeight: 700, fontSize: '1rem', flexShrink: 0 }}
-                >✕</button>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span style={{ color: '#8b4513', fontWeight: 600 }}>📎 {selectedFile.name}</span>
+                  <button
+                    onClick={() => { setSelectedFile(null); setSelectedFilePreview(null); }}
+                    style={{ background: 'none', border: 'none', color: '#dc2626', cursor: 'pointer', fontWeight: 700, fontSize: '1rem' }}
+                  >✕</button>
+                </div>
+                {selectedFilePreview && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <img src={selectedFilePreview} alt="preview" style={{ width: '56px', height: '56px', objectFit: 'cover', borderRadius: '8px', border: '1.5px solid rgba(184,115,74,0.3)' }} />
+                    <button
+                      className="cb-img-send-btn"
+                      onClick={() => sendMessage(input.trim() || 'Here is my reference image 📎')}
+                      disabled={isLoading}
+                    >
+                      📤 Send Image
+                    </button>
+                  </div>
+                )}
               </div>
             )}
 
@@ -465,7 +683,13 @@ const ChatbotWidget = () => {
               display: 'flex', alignItems: 'center', gap: '8px',
               flexShrink: 0
             }}>
-              <input type="file" ref={fileInputRef} onChange={handleFileChange} style={{ display: 'none' }} accept="image/*" />
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileChange}
+                style={{ display: 'none' }}
+                accept="image/*"
+              />
 
               {/* Attach Button */}
               <button
@@ -490,7 +714,7 @@ const ChatbotWidget = () => {
                 ref={inputRef}
                 className="chatbot-input"
                 type="text"
-                placeholder="Ask anything or type in Gujlish..."
+                placeholder="Type in English or Gujarati..."
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}

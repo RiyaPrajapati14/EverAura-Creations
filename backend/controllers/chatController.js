@@ -80,7 +80,13 @@ const formatStatusTimeline = (status) => {
 /* ══════════════════════════════════════════════════════════════════════════
    GROQ AI INTEGRATION — LLaMA 3.3 70B Model (with multi-turn history)
 ══════════════════════════════════════════════════════════════════════════ */
-const STUDIO_SYSTEM_PROMPT = `You are the friendly, expert 24/7 AI Assistant for "EverAura Creations", Nadiad's premier artisan craft & digital studio in Gujarat, India.
+const buildSystemPrompt = (lang) => {
+  const langInstruction = lang === 'gu'
+    ? `IMPORTANT: The customer has chosen Gujarati as their preferred language. Always respond in friendly Phonetic Gujarati (Gujlish — Gujarati written in English letters, e.g. "Kem cho!", "Su banavvu che?"). Mix Gujarati phrases naturally. If the customer writes in English, still reply in Phonetic Gujarati.
+`
+    : `IMPORTANT: The customer has chosen English as their preferred language. Always respond in clear, warm English.
+`;
+  return `You are the friendly, expert 24/7 AI Assistant for "EverAura Creations", Nadiad's premier artisan craft & digital studio in Gujarat, India.
 Studio Profile & Info:
 - Owner: Riya Prajapati (Studio Head, Nadiad)
 - Specialty: Handmade Gifts, Resin Art (Keepsakes, Coasters, Trays), Wedding Welcome Boards, Calligraphy Frames, Ring Ceremony Platters, Digital Wedding Invitations, Pre-wedding Video Posters, Social Media Reels & Brand Logos.
@@ -91,14 +97,19 @@ Studio Profile & Info:
 - Digital Turnaround: 24 to 48 hours.
 - Key Price Highlights: Welcome Boards (₹800-2800), Ring Platters (₹1200-2400), Resin Keepsakes (₹600-1400), Digital Invites (₹400-900), Video Posters (₹300-700).
 
+${langInstruction}
 Instructions:
-1. Respond warmly and conversationally in the user's language (English, Phonetic Gujarati / Gujlish, or Hindi).
-2. Keep responses concise (2 to 5 sentences max) with nice formatting and emojis.
-3. Always invite the user to place an order or check prices if they seem interested.
-4. In discussion mode, remember the full conversation context and respond thoughtfully to follow-up questions.`;
+1. Keep responses concise (2 to 5 sentences max) with nice formatting and emojis.
+2. Always invite the user to place an order or check prices if they seem interested.
+3. In discussion mode, remember the full conversation context and respond thoughtfully to follow-up questions.
+4. NEVER respond in a language other than what the customer has chosen.`;
+};
+
+// Backwards-compatible default (no lang set yet)
+const STUDIO_SYSTEM_PROMPT = buildSystemPrompt('en');
 
 /* Basic single-turn Groq call (for INIT state fallback) */
-const callGroqAI = async (userPrompt) => {
+const callGroqAI = async (userPrompt, lang = 'en') => {
   const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey) return null;
 
@@ -112,7 +123,7 @@ const callGroqAI = async (userPrompt) => {
       body: JSON.stringify({
         model: 'llama-3.3-70b-versatile',
         messages: [
-          { role: 'system', content: STUDIO_SYSTEM_PROMPT },
+          { role: 'system', content: buildSystemPrompt(lang) },
           { role: 'user', content: userPrompt }
         ],
         max_tokens: 300,
@@ -132,13 +143,13 @@ const callGroqAI = async (userPrompt) => {
 };
 
 /* Multi-turn Groq call (for DISCUSS state — passes full history for context) */
-const callGroqAIWithHistory = async (conversationHistory, newUserMessage) => {
+const callGroqAIWithHistory = async (conversationHistory, newUserMessage, lang = 'en') => {
   const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey) return null;
 
   try {
     const messages = [
-      { role: 'system', content: STUDIO_SYSTEM_PROMPT },
+      { role: 'system', content: buildSystemPrompt(lang) },
       ...(conversationHistory || []),
       { role: 'user', content: newUserMessage }
     ];
@@ -211,16 +222,58 @@ exports.handleChatMessage = async (req, res) => {
   try {
     const { message = '', state = 'INIT', sessionData = {} } = req.body;
     const cleanMsg = message.trim();
+    const userLang = sessionData.lang || null; // 'en' or 'gu'
 
     /* ══ UNIVERSAL COMMANDS — work from any state ══════════════════════ */
+
+    // 🌐 Language Selection state — must be handled before anything else
+    if (state === 'LANG_SELECT' || (!userLang && state === 'INIT' && cleanMsg !== '🌐 Change Language')) {
+      // Handle language choice
+      if (cleanMsg === '🇬🇧 English' || cleanMsg.toLowerCase() === 'english') {
+        return res.json({
+          nextState: 'INIT',
+          reply: "Welcome to **EverAura Creations**! 🎨✨\n\nI'm your 24/7 AI Assistant for Nadiad's premier artisan studio. How can I help you today?",
+          quickReplies: ['✨ Place an Order', '💬 Check Price', '📍 Delivery Info', '📦 Track Order', '🚫 Cancel Order', '🗣️ Discuss a Query', '📬 Check My Replies'],
+          sessionData: { ...sessionData, lang: 'en' }
+        });
+      }
+      if (cleanMsg === '🇮🇳 Gujarati (ગુજરાતી)' || cleanMsg.toLowerCase() === 'gujarati') {
+        return res.json({
+          nextState: 'INIT',
+          reply: "**EverAura Creations** ma swagat che! 🎨✨\n\nHu tamaro 24/7 AI Assistant chu — Nadiad na premier artisan studio no! Su help kari shakhu tamne?",
+          quickReplies: ['✨ Place an Order', '💬 Check Price', '📍 Delivery Info', '📦 Track Order', '🚫 Cancel Order', '🗣️ Discuss a Query', '📬 Check My Replies'],
+          sessionData: { ...sessionData, lang: 'gu' }
+        });
+      }
+      // If no lang set yet and not a language choice, show language prompt
+      if (!userLang) {
+        return res.json({
+          nextState: 'LANG_SELECT',
+          reply: "Namaste! Kem cho! 🙏\n\n**EverAura Creations** ma aapno swagat che!\n\nPlease choose your preferred language:\n*(Tamari pasandida bhasha pasand karo:)*",
+          quickReplies: ['🇬🇧 English', '🇮🇳 Gujarati (ગુજરાતી)'],
+          sessionData: {}
+        });
+      }
+    }
+
+    // 🌐 Change Language — from any state
+    if (cleanMsg === '🌐 Change Language') {
+      return res.json({
+        nextState: 'LANG_SELECT',
+        reply: "Please choose your preferred language:\n*(Tamari pasandida bhasha pasand karo:)*",
+        quickReplies: ['🇬🇧 English', '🇮🇳 Gujarati (ગુજરાતી)']
+      });
+    }
 
     // 🏠 Main Menu — always resets to INIT
     if (cleanMsg === '🏠 Main Menu' || cleanMsg.toLowerCase() === 'main menu' || cleanMsg.toLowerCase() === 'menu') {
       return res.json({
         nextState: 'INIT',
-        reply: "🏠 **Main Menu**\n\nHow can I help you today?",
+        reply: userLang === 'gu'
+          ? "🏠 **Main Menu**\n\nSu madad kari shakhu tamne?"
+          : "🏠 **Main Menu**\n\nHow can I help you today?",
         quickReplies: ['✨ Place an Order', '💬 Check Price', '📍 Delivery Info', '📦 Track Order', '🚫 Cancel Order', '🗣️ Discuss a Query', '📬 Check My Replies'],
-        sessionData: {}
+        sessionData: { ...sessionData }
       });
     }
 
@@ -228,9 +281,11 @@ exports.handleChatMessage = async (req, res) => {
     if (cleanMsg === '🔄 Start Over' || cleanMsg.toLowerCase() === 'start over' || cleanMsg.toLowerCase() === 'restart') {
       return res.json({
         nextState: 'INIT',
-        reply: "Sure! Let's start fresh. 😊\n\nWhat would you like to do?",
-        quickReplies: ['✨ Place an Order', '💬 Check Price', '📍 Delivery Info', '📦 Track Order', '🚫 Cancel Order'],
-        sessionData: {}
+        reply: userLang === 'gu'
+          ? "Saras! Nava start karie. 😊\n\nSu karvu che tamne?"
+          : "Sure! Let's start fresh. 😊\n\nWhat would you like to do?",
+        quickReplies: ['✨ Place an Order', '💬 Check Price', '📍 Delivery Info', '📦 Track Order', '🚫 Cancel Order', '🗣️ Discuss a Query'],
+        sessionData: { lang: userLang }
       });
     }
 
@@ -455,12 +510,13 @@ exports.handleChatMessage = async (req, res) => {
       }
 
       // Groq AI Integration (Ultra-fast LLaMA 3.3 70B Model)
-      const aiReply = await callGroqAI(cleanMsg);
+      const aiReply = await callGroqAI(cleanMsg, userLang || 'en');
       if (aiReply) {
         return res.json({
           nextState: 'INIT',
           reply: aiReply,
-          quickReplies: ['✨ Place an Order', '💬 Check Price', '📍 Delivery Info', '📦 Track Order', '🗣️ Discuss a Query']
+          quickReplies: ['✨ Place an Order', '💬 Check Price', '📍 Delivery Info', '📦 Track Order', '🗣️ Discuss a Query', '📬 Check My Replies'],
+          sessionData
         });
       }
 
@@ -491,7 +547,7 @@ exports.handleChatMessage = async (req, res) => {
       const history = Array.isArray(sessionData.conversationHistory) ? sessionData.conversationHistory : [];
 
       // Get multi-turn Groq AI reply with full conversation context
-      const discussReply = await callGroqAIWithHistory(history, cleanMsg);
+      const discussReply = await callGroqAIWithHistory(history, cleanMsg, userLang || 'en');
 
       // Append this exchange to conversation history (keep last 10 turns for token efficiency)
       const updatedHistory = [
@@ -504,7 +560,7 @@ exports.handleChatMessage = async (req, res) => {
         return res.json({
           nextState: 'DISCUSS',
           reply: discussReply,
-          quickReplies: ['📩 Send Query to Studio', '✨ Place an Order', '🏠 Main Menu'],
+          quickReplies: ['📩 Send Query to Studio', '✨ Place an Order', '📬 Check My Replies', '🏠 Main Menu'],
           sessionData: { ...sessionData, conversationHistory: updatedHistory }
         });
       }
@@ -512,8 +568,10 @@ exports.handleChatMessage = async (req, res) => {
       // Fallback if Groq is unavailable in discuss mode
       return res.json({
         nextState: 'DISCUSS',
-        reply: "Great question! 😊 I want to make sure I give you the best answer. You can also **📩 Send this Query to our Studio** and Riya from EverAura will personally reply in this chat!",
-        quickReplies: ['📩 Send Query to Studio', '✨ Place an Order', '🏠 Main Menu'],
+        reply: userLang === 'gu'
+          ? "Saras prashna! 😊 **📩 Send this Query to our Studio** karo ane Riya personally reply karasi!"
+          : "Great question! 😊 I want to make sure I give you the best answer. You can also **📩 Send this Query to our Studio** and Riya from EverAura will personally reply!",
+        quickReplies: ['📩 Send Query to Studio', '✨ Place an Order', '📬 Check My Replies', '🏠 Main Menu'],
         sessionData: { ...sessionData, conversationHistory: updatedHistory }
       });
     }
@@ -595,12 +653,16 @@ exports.handleChatMessage = async (req, res) => {
 
     /* ══════════════════════════════════════════════════════════════════════════
        CHECK MY REPLIES — Fetch admin replies from DB by phone number
+       Works from ANY state (universal command)
     ══════════════════════════════════════════════════════════════════════════ */
-    if (state === 'INIT' && (cleanMsg === '📬 Check My Replies' || cleanMsg.toLowerCase() === 'check replies' || cleanMsg.toLowerCase() === 'check my replies')) {
+    if (cleanMsg === '📬 Check My Replies' || cleanMsg.toLowerCase() === 'check replies' || cleanMsg.toLowerCase() === 'check my replies') {
       return res.json({
         nextState: 'CHECK_REPLIES_PHONE',
-        reply: "📬 **Check Studio Replies**\n\nPlease enter your **10-digit mobile number** that you used when submitting your query:",
-        quickReplies: ['🏠 Main Menu']
+        reply: userLang === 'gu'
+          ? "📬 **Studio Replies Check Karo**\n\nTamaro **10-digit mobile number** enter karo je tame query submit karte vakhte use karyo hato:"
+          : "📬 **Check Studio Replies**\n\nPlease enter your **10-digit mobile number** that you used when submitting your query:",
+        quickReplies: ['🏠 Main Menu'],
+        sessionData
       });
     }
 
